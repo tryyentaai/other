@@ -1,0 +1,1232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Framewise">
+<meta name="theme-color" content="#0c0b0a">
+<title>Framewise</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<style>
+:root{
+  --bg:#0c0b0a; --surface:#1a1816; --raised:#26231f; --good:#38ff88; --warn:#ff8a3d;
+  --text:#fff; --muted:rgba(255,255,255,.62); --line:rgba(255,255,255,.08);
+  --mono: ui-monospace, "SF Mono", Menlo, monospace;
+  --sat: env(safe-area-inset-top); --sab: env(safe-area-inset-bottom);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:15px/1.35 -apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;overflow:hidden;overscroll-behavior:none}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+svg{display:block}
+.hidden,[hidden]{display:none!important}
+
+/* ---------- layout ---------- */
+#app{position:fixed;inset:0;display:flex;flex-direction:column;padding-top:var(--sat);padding-bottom:var(--sab)}
+#top{display:flex;align-items:center;gap:14px;padding:8px 16px;min-height:44px}
+#top .sp{flex:1}
+.ico{width:34px;height:34px;display:grid;place-items:center;border-radius:50%;color:var(--muted)}
+.ico.on{color:var(--warn)}
+.ico.good{color:var(--good)}
+#readout{font:11px var(--mono);color:var(--muted);white-space:nowrap;display:flex;gap:10px}
+
+#stage{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:0 6px}
+#frame{position:relative;width:100%;max-height:100%;aspect-ratio:3/4;border-radius:14px;overflow:hidden;background:#000;touch-action:none}
+#frame.landscape{aspect-ratio:4/3}
+#video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform-origin:50% 50%;transition:filter .25s}
+#video.mirror{transform:scaleX(-1)}
+#flash{position:absolute;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity .15s}
+#flash.on{opacity:.85;transition:none}
+
+/* overlays */
+#grid{position:absolute;inset:0;pointer-events:none;background:
+  linear-gradient(to right,transparent calc(33.33% - .5px),rgba(255,255,255,.28) calc(33.33% - .5px),rgba(255,255,255,.28) calc(33.33% + .5px),transparent calc(33.33% + .5px),transparent calc(66.66% - .5px),rgba(255,255,255,.28) calc(66.66% - .5px),rgba(255,255,255,.28) calc(66.66% + .5px),transparent calc(66.66% + .5px)),
+  linear-gradient(to bottom,transparent calc(33.33% - .5px),rgba(255,255,255,.28) calc(33.33% - .5px),rgba(255,255,255,.28) calc(33.33% + .5px),transparent calc(33.33% + .5px),transparent calc(66.66% - .5px),rgba(255,255,255,.28) calc(66.66% - .5px),rgba(255,255,255,.28) calc(66.66% + .5px),transparent calc(66.66% + .5px))}
+#level{position:absolute;left:50%;top:50%;width:180px;height:20px;margin:-10px 0 0 -90px;pointer-events:none;transition:transform .25s}
+#level .tick{position:absolute;top:9px;width:18px;height:1.5px;background:var(--muted)}
+#level .tick.l{left:0}#level .tick.r{right:0}
+#level .line{position:absolute;left:30px;top:9px;width:120px;height:1.5px;background:rgba(255,255,255,.85);transition:transform .1s linear}
+#level.ok .line{background:var(--good);height:2.5px;top:8.5px}
+#overlayTop{position:absolute;left:10px;right:10px;top:10px;display:flex;flex-direction:column;gap:8px;align-items:stretch}
+.banner{background:rgba(26,24,22,.72);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-radius:14px;padding:11px 12px;font-size:14px;font-weight:500;animation:drop .3s ease}
+.banner.goal{border:1px solid rgba(56,255,136,.5);text-align:center}
+.banner.tip{border:1px solid rgba(255,138,61,.45);display:flex;align-items:center;gap:10px}
+.banner.tip .msg{flex:1}
+.banner.tip .fix{background:var(--good);color:var(--bg);font-weight:700;font-size:13px;border-radius:999px;padding:7px 11px;white-space:nowrap}
+.banner.tip .x{color:var(--muted);padding:4px}
+@keyframes drop{from{transform:translateY(-8px);opacity:0}to{transform:none;opacity:1}}
+#histo{position:absolute;right:10px;bottom:10px;width:76px;height:34px;background:rgba(0,0,0,.45);border-radius:6px;padding:4px}
+#ring{position:absolute;width:72px;height:72px;margin:-36px 0 0 -36px;border:1.5px solid var(--good);border-radius:6px;pointer-events:none;opacity:0}
+#ring.show{animation:ring 1.2s ease forwards}
+@keyframes ring{0%{opacity:0;transform:scale(1.35)}15%{opacity:1;transform:scale(1)}75%{opacity:1}100%{opacity:0}}
+#busy{position:absolute;inset:0;display:grid;place-items:center;background:rgba(0,0,0,.35);font-weight:600;pointer-events:none}
+#busy span{background:rgba(26,24,22,.85);padding:10px 16px;border-radius:999px;font-size:14px}
+#zoomBadge{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);font:12px var(--mono);background:rgba(0,0,0,.5);padding:4px 8px;border-radius:999px;opacity:0;transition:opacity .2s}
+#zoomBadge.show{opacity:1}
+
+/* deck */
+#deck{padding:10px 0 6px;display:flex;flex-direction:column;gap:12px}
+#bright{display:flex;align-items:center;gap:10px;padding:0 20px}
+#bright input{flex:1;accent-color:var(--warn)}
+#bright button{font-size:12px;font-weight:600}
+#lenses{display:flex;justify-content:center;gap:10px}
+.lens{width:38px;height:38px;border-radius:50%;background:rgba(38,35,31,.85);font:600 12px var(--mono);display:grid;place-items:center;transition:all .2s}
+.lens.on{width:46px;height:46px;background:rgba(56,255,136,.18);border:1px solid var(--good);color:var(--good);font-size:14px}
+#lensHint{text-align:center;font-size:12px;color:var(--muted);min-height:16px;padding:0 20px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#goals{display:flex;gap:8px;overflow-x:auto;padding:0 16px;scrollbar-width:none}
+#goals::-webkit-scrollbar{display:none}
+.chip{display:flex;align-items:center;gap:6px;white-space:nowrap;padding:9px 14px;border-radius:999px;background:rgba(38,35,31,.85);border:1px solid var(--line);font-size:14px;font-weight:600}
+.chip.on{background:rgba(56,255,136,.18);border-color:var(--good);color:var(--good)}
+#shutterRow{display:flex;align-items:center;justify-content:space-between;padding:0 26px 6px}
+#thumb{width:56px;height:56px;border-radius:10px;background:var(--raised) center/cover;border:1px solid rgba(255,255,255,.2)}
+#shutter{width:78px;height:78px;border-radius:50%;border:4px solid #fff;display:grid;place-items:center}
+#shutter i{width:64px;height:64px;border-radius:50%;background:#fff;transition:transform .1s,background .2s}
+#shutter:active i{transform:scale(.9)}
+#shutter.busy i{background:rgba(255,255,255,.55)}
+#side{width:56px;display:flex;flex-direction:column;align-items:center;gap:12px}
+
+/* sheets */
+.sheet{position:fixed;inset:0;z-index:20;background:var(--bg);display:flex;flex-direction:column;padding-top:var(--sat);animation:up .3s ease}
+@keyframes up{from{transform:translateY(30px);opacity:0}to{transform:none;opacity:1}}
+.sheet header{display:flex;align-items:center;padding:12px 18px;border-bottom:1px solid var(--line)}
+.sheet header h2{flex:1;margin:0;font-size:17px;text-align:center}
+.sheet header button{color:var(--good);font-weight:600;min-width:48px}
+.sheet .body{flex:1;overflow-y:auto;padding:18px;padding-bottom:calc(30px + var(--sab));-webkit-user-select:text;user-select:text}
+.card{background:var(--surface);border-radius:14px;padding:16px;margin-bottom:14px}
+.card h3{margin:0 0 10px;font-size:16px}
+.row{padding:10px 0;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}
+.row .k{display:flex;justify-content:space-between;gap:12px}
+.row .k span:first-child{color:var(--muted)}
+.row .k span:last-child{font:600 14px var(--mono);text-align:right}
+.row p{margin:4px 0 0;font-size:14px;color:rgba(255,255,255,.85)}
+.tipcard{background:rgba(56,255,136,.1);border-radius:14px;padding:14px 16px;display:flex;gap:10px;margin-bottom:14px}
+.tipcard b{color:var(--good)}
+.btn{display:block;width:100%;text-align:center;background:var(--good);color:var(--bg);font-weight:700;border-radius:999px;padding:15px;font-size:16px}
+.btn.ghost{background:var(--raised);color:var(--text);margin-top:10px}
+#reviewImg{width:100%;border-radius:14px;display:block;margin-bottom:14px;background:#000}
+.learn{display:flex;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.learn:last-child{border:0}
+.learn .g{color:var(--good);width:26px;flex:none;padding-top:2px}
+.learn h4{margin:0 0 3px;font-size:15px}
+.learn p{margin:0;font-size:14px;color:var(--muted)}
+table.cmp{width:100%;border-collapse:collapse;font-size:13px}
+table.cmp td,table.cmp th{padding:7px 4px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+table.cmp th{color:var(--muted);font-weight:600}
+.y{color:var(--good)}.n{color:var(--muted)}
+
+/* onboarding */
+#onboard{position:fixed;inset:0;z-index:30;background:var(--bg);display:flex;flex-direction:column;padding:calc(var(--sat) + 30px) 28px calc(var(--sab) + 24px)}
+#onboard .pages{flex:1;display:flex;align-items:center;justify-content:center;text-align:center}
+#onboard .pg{animation:up .35s ease}
+#onboard .pg .big{color:var(--good);display:grid;place-items:center;margin-bottom:22px}
+#onboard h1{font-size:28px;margin:0 0 14px;line-height:1.15}
+#onboard p{color:var(--muted);font-size:16px;margin:0}
+#dots{display:flex;justify-content:center;gap:8px;margin:18px 0}
+#dots i{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.25)}
+#dots i.on{background:var(--good)}
+#errorBox{position:fixed;inset:0;z-index:25;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:30px;gap:14px}
+#errorBox h2{margin:0;font-size:20px}
+#errorBox p{margin:0;color:var(--muted)}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div id="top">
+    <button class="ico" id="torchBtn" aria-label="Flashlight" hidden></button>
+    <button class="ico" id="gridBtn" aria-label="Grid"></button>
+    <div class="sp"></div>
+    <div id="readout"></div>
+    <div class="sp"></div>
+    <button class="ico" id="learnBtn" aria-label="Learn"></button>
+  </div>
+
+  <div id="stage">
+    <div id="frame">
+      <video id="video" playsinline muted autoplay></video>
+      <div id="grid" class="hidden"></div>
+      <div id="level" class="hidden"><i class="tick l"></i><i class="tick r"></i><i class="line"></i></div>
+      <div id="ring"></div>
+      <div id="overlayTop"></div>
+      <canvas id="histo" width="68" height="26" aria-hidden="true"></canvas>
+      <div id="zoomBadge"></div>
+      <div id="flash"></div>
+      <div id="busy" class="hidden"><span></span></div>
+    </div>
+  </div>
+
+  <div id="deck">
+    <div id="bright" class="hidden">
+      <span aria-hidden="true">−</span>
+      <input id="evSlider" type="range" min="-2" max="2" step="0.1" value="0" aria-label="Brightness">
+      <span aria-hidden="true">+</span>
+      <button id="evReset">Reset</button>
+    </div>
+    <div id="lenses"></div>
+    <div id="lensHint"></div>
+    <div id="goals"></div>
+    <div id="shutterRow">
+      <button id="thumb" aria-label="Last photo and shot report"></button>
+      <button id="shutter" aria-label="Take photo"><i></i></button>
+      <div id="side">
+        <button class="ico" id="evBtn" aria-label="Brightness"></button>
+        <button class="ico" id="flipBtn" aria-label="Switch camera" hidden></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="onboard" class="hidden">
+  <div class="pages"><div class="pg" id="obPage"></div></div>
+  <div id="dots"></div>
+  <button class="btn" id="obNext">Next</button>
+</div>
+
+<div id="errorBox" class="hidden">
+  <div id="errIcon" style="color:var(--warn)"></div>
+  <h2 id="errTitle"></h2>
+  <p id="errText"></p>
+  <button class="btn" id="errRetry" style="max-width:280px">Try again</button>
+</div>
+
+<div id="reviewSheet" class="sheet hidden">
+  <header><span style="min-width:48px"></span><h2>Shot report</h2><button id="reviewDone">Done</button></header>
+  <div class="body" id="reviewBody"></div>
+</div>
+
+<div id="learnSheet" class="sheet hidden">
+  <header><span style="min-width:48px"></span><h2>Learn</h2><button id="learnDone">Done</button></header>
+  <div class="body" id="learnBody"></div>
+</div>
+
+<canvas id="work" class="hidden"></canvas>
+
+<script>
+'use strict';
+/* =====================================================================
+   Framewise (web). A coaching camera for people who aren't photographers.
+   Goals instead of settings, a live coach, and computational capture
+   (sharpest-of-burst, aligned multi-frame low light) done in the browser.
+   ===================================================================== */
+
+const $ = (id) => document.getElementById(id);
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+
+/* ---------- icons (inline SVG, stroke = currentColor) ---------- */
+const I = {
+  sparkles:'<path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/>',
+  person:'<circle cx="12" cy="12" r="9.5"/><circle cx="12" cy="10" r="3.2"/><path d="M6.2 18.6c1.3-2.3 3.4-3.6 5.8-3.6s4.5 1.3 5.8 3.6"/>',
+  run:'<circle cx="15" cy="4.5" r="1.8"/><path d="M8 21l3-6 3 2 1 4M6 12l3-3.5 4 1 2 3 3 1M11 15l1.5-5.5"/>',
+  mountain:'<path d="M2 20l7-12 4 7 2.5-4L22 20z"/>',
+  moon:'<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/><path d="M17 3v3M15.5 4.5h3"/>',
+  leaf:'<path d="M5 19c0-8 5-14 15-15-1 10-7 15-15 15z"/><path d="M5 19l8-8"/>',
+  grid:'<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/>',
+  cap:'<path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11v5c3 2 9 2 12 0v-5M22 9v6"/>',
+  sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  flip:'<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><path d="M9.5 13.5a2.5 2.5 0 0 0 4.5 1M14.5 12.5a2.5 2.5 0 0 0-4.5-1"/>',
+  torch:'<path d="M8 2h8l-1 6H9z"/><path d="M9 8h6v12a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2z"/>',
+  warn:'<circle cx="12" cy="12" r="9.5"/><path d="M12 7v6M12 16.5v.5"/>',
+  bulb:'<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"/>',
+  x:'<path d="M6 6l12 12M18 6L6 18"/>',
+  camera:'<path d="M3 8h4l2-3h6l2 3h4v12H3z"/><circle cx="12" cy="13.5" r="4"/>',
+  aperture:'<circle cx="12" cy="12" r="9.5"/><path d="M14.3 2.8L9 12M21.2 9.5l-10.6.3M18.5 19.4l-5.3-9.1M9.7 21.2l5.3-9.2M2.8 14.5l10.6-.3M5.5 4.6l5.3 9.1"/>',
+  stack:'<path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5M3 17.5l9 5 9-5"/>',
+  hand:'<path d="M8 13V5.5a1.5 1.5 0 0 1 3 0V11M11 10V4a1.5 1.5 0 0 1 3 0v7M14 10.5V6a1.5 1.5 0 0 1 3 0v8c0 4-2.5 7-6.5 7-3 0-4.5-1.5-6-4l-1.8-3.2a1.4 1.4 0 0 1 2.3-1.6L8 15"/>'
+};
+function icon(name, size = 20, sw = 1.8) {
+  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${I[name]}</svg>`;
+}
+
+/* ---------- goals ---------- */
+const GOALS = [
+  { id:'auto', title:'Auto', icon:'sparkles', lens:null,
+    changed:'Camera handles everything. Tap your subject to set brightness.',
+    explain:'The camera picks everything. Start here, then try a goal when you want a specific look.' },
+  { id:'people', title:'People', icon:'person', lens:'main2x',
+    changed:'Zoomed to 2×. The most flattering view for faces.',
+    explain:'Faces look natural at 2× (about a 48 mm view). The 1× and 0.5× lenses stretch noses and foreheads up close. Stand 1.5–2 m away and keep the background far behind your subject for a softer look.' },
+  { id:'action', title:'Action', icon:'run', lens:'main',
+    changed:'Burst mode: takes 5 frames and keeps the sharpest one.',
+    explain:'Moving kids, pets and sports blur easily. Framewise grabs a quick burst and automatically keeps the sharpest frame, so you get the shot without picking through duplicates.' },
+  { id:'scenery', title:'Scenery', icon:'mountain', lens:null,
+    changed:'Adds crispness and a touch of color for landscapes.',
+    explain:'Landscapes and buildings look best with fine detail and rich color. Framewise sharpens the image and adds a little vibrance. Try 0.5× for big, dramatic scenes.' },
+  { id:'lowlight', title:'Low Light', icon:'moon', lens:'main',
+    changed:'Night stack: blends 8 frames to cut grain. Hold still.',
+    explain:'In the dark, single photos get grainy. Framewise lines up 8 frames and averages them, cutting grain by roughly two thirds, then lifts the shadows. Brace your elbows or lean on something.' },
+  { id:'closeup', title:'Close-up', icon:'leaf', lens:'macro',
+    changed:'Using the ultra wide lens, which focuses closest.',
+    explain:'The ultra wide lens can focus just a few centimetres away. Framewise crops in 2× so your subject fills the frame. Get close, then hold still.' }
+];
+const goalById = (id) => GOALS.find(g => g.id === id);
+
+/* ---------- lenses ---------- */
+const LENS_META = {
+  ultra: { label:'0.5', name:'Ultra Wide', best:'Rooms, big groups, dramatic landscapes' },
+  main:  { label:'1',   name:'Main',       best:'Everyday shots. Sharpest in low light' },
+  main2x:{ label:'2',   name:'Portrait',   best:'People. Natural-looking faces' },
+  tele:  { label:'Tele',name:'Telephoto',  best:'Faraway subjects, flattering headshots' },
+  macro: { label:'Close',name:'Close-up',  best:'Flowers, food, tiny details' },
+  front: { label:'Selfie',name:'Front',    best:'Selfies' }
+};
+const ROW = ['ultra','main','main2x','tele'];
+
+/* ---------- state ---------- */
+const S = {
+  goal:'auto', lens:'main', devices:{}, stream:null, track:null,
+  digitalZoom:1, hwZoom:null, pinchZoom:1,
+  ev:0, grid:false, torch:false, busy:false,
+  tilt:null, upright:0, shake:0, gSign:null, gSamples:[],
+  reading:null, shots:[], tip:null, opening:false
+};
+
+/* =====================================================================
+   Camera
+   ===================================================================== */
+const video = $('video');
+
+function classify(label) {
+  const l = (label || '').toLowerCase();
+  if (/front|user|facetime/.test(l)) return 'front';
+  if (/ultra ?wide|ultrawide/.test(l) && /back|rear|environment/.test(l)) return 'ultra';
+  if (/tele/.test(l)) return 'tele';
+  if (/dual|triple|desk/.test(l)) return null; // virtual multi-cams: skip, we want physical lenses
+  if (/back|rear|environment/.test(l)) return 'main';
+  return null;
+}
+
+async function discover() {
+  const list = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput');
+  const found = {};
+  for (const d of list) {
+    const role = classify(d.label);
+    if (role && !found[role]) found[role] = d.deviceId;
+  }
+  S.devices = found;
+}
+
+function stopStream() {
+  if (S.stream) S.stream.getTracks().forEach(t => t.stop());
+  S.stream = null; S.track = null;
+}
+
+/** role → which physical device + how much zoom on it */
+function lensPlan(role) {
+  switch (role) {
+    case 'main2x': return { dev:'main', zoom:2 };
+    case 'macro':  return S.devices.ultra ? { dev:'ultra', zoom:2 } : { dev:'main', zoom:1 };
+    default:       return { dev: role, zoom:1 };
+  }
+}
+
+async function openLens(role) {
+  if (S.opening) return;
+  S.opening = true;
+  try {
+    const plan = lensPlan(role);
+    const deviceId = S.devices[plan.dev];
+    const want = (S.track && S.track.getSettings().deviceId) || null;
+    const needNew = !S.track || (deviceId && want !== deviceId) || (!deviceId && plan.dev === 'front') ;
+
+    if (needNew) {
+      stopStream();
+      const base = { width:{ ideal:4032 }, height:{ ideal:3024 }, aspectRatio:{ ideal:4/3 } };
+      let constraints;
+      if (deviceId) constraints = { video:{ ...base, deviceId:{ exact:deviceId } }, audio:false };
+      else constraints = { video:{ ...base, facingMode: plan.dev === 'front' ? 'user' : 'environment' }, audio:false };
+      S.stream = await navigator.mediaDevices.getUserMedia(constraints);
+      S.track = S.stream.getVideoTracks()[0];
+      video.srcObject = S.stream;
+      await video.play().catch(() => {});
+      await waitForSize();
+    }
+
+    S.lens = role;
+    S.pinchZoom = 1;
+    video.classList.toggle('mirror', plan.dev === 'front');
+    await setZoom(plan.zoom);
+    sizeFrame();
+    renderLenses();
+    renderReadout();
+  } finally {
+    S.opening = false;
+  }
+}
+
+function waitForSize() {
+  return new Promise((res) => {
+    if (video.videoWidth) return res();
+    const t = setTimeout(res, 2500);
+    video.addEventListener('loadedmetadata', () => { clearTimeout(t); res(); }, { once:true });
+  });
+}
+
+function sizeFrame() {
+  const w = video.videoWidth, h = video.videoHeight;
+  if (!w || !h) return;
+  const frame = $('frame');
+  frame.style.aspectRatio = `${w} / ${h}`;
+  // Keep it inside the stage on short screens.
+  const stage = $('stage').getBoundingClientRect();
+  const maxW = Math.min(stage.width - 12, stage.height * (w / h));
+  frame.style.width = Math.max(120, maxW) + 'px';
+}
+
+/** Hardware zoom when the browser exposes it, otherwise a center crop (preview + capture). */
+async function setZoom(z) {
+  const caps = S.track && S.track.getCapabilities ? S.track.getCapabilities() : {};
+  if (caps.zoom && caps.zoom.max > caps.zoom.min) {
+    const target = clamp(z, caps.zoom.min, caps.zoom.max);
+    try {
+      await S.track.applyConstraints({ advanced:[{ zoom: target }] });
+      S.hwZoom = target; S.digitalZoom = 1;
+      applyPreviewTransform();
+      return;
+    } catch (_) { /* fall through to digital */ }
+  }
+  S.hwZoom = null;
+  S.digitalZoom = Math.max(1, z);
+  applyPreviewTransform();
+}
+
+function totalDigital() { return S.digitalZoom * S.pinchZoom; }
+
+function applyPreviewTransform() {
+  const z = totalDigital();
+  const mirror = video.classList.contains('mirror') ? ' scaleX(-1)' : '';
+  video.style.transform = `scale(${z})${mirror}`;
+  video.style.filter = S.ev ? `brightness(${Math.pow(2, S.ev / 2.2).toFixed(3)})` : '';
+}
+
+/* =====================================================================
+   Live analysis (4× per second) → coach
+   ===================================================================== */
+const ana = document.createElement('canvas');
+const anaCtx = ana.getContext('2d', { willReadFrequently:true });
+
+/** Source rect of the visible (zoomed) region in video pixels. */
+function cropRect(extraZoom = totalDigital()) {
+  const w = video.videoWidth, h = video.videoHeight;
+  const cw = w / extraZoom, ch = h / extraZoom;
+  return { sx:(w - cw) / 2, sy:(h - ch) / 2, sw:cw, sh:ch };
+}
+
+function analyze() {
+  if (!video.videoWidth || S.busy || document.hidden) return;
+  const r = cropRect();
+  const W = 72, H = Math.round(72 * r.sh / r.sw);
+  ana.width = W; ana.height = H;
+  anaCtx.drawImage(video, r.sx, r.sy, r.sw, r.sh, 0, 0, W, H);
+  const d = anaCtx.getImageData(0, 0, W, H).data;
+
+  const bins = new Array(32).fill(0);
+  let sum = 0, sum2 = 0, n = 0, bright = 0, dark = 0, cSum = 0, cN = 0, eSum = 0, eN = 0;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const i = (y * W + x) * 4;
+    const v = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+    sum += v; sum2 += v * v; n++;
+    bins[Math.min(31, v >> 3)]++;
+    if (v >= 250) bright++;
+    if (v <= 6) dark++;
+    const cx = Math.abs(x / W - .5), cy = Math.abs(y / H - .5);
+    if (cx < .2 && cy < .22) { cSum += v; cN++; } else if (cx > .32 || cy > .36) { eSum += v; eN++; }
+  }
+  const mean = sum / n;
+  const peak = Math.max(...bins) || 1;
+  S.reading = {
+    mean, std: Math.sqrt(Math.max(0, sum2 / n - mean * mean)),
+    clipped: bright / n, crushed: dark / n,
+    center: cN ? cSum / cN : mean, edges: eN ? eSum / eN : mean,
+    hist: bins.map(b => b / peak)
+  };
+  drawHisto();
+  updateCoach();
+}
+
+function drawHisto() {
+  const c = $('histo'), ctx = c.getContext('2d'), h = S.reading.hist;
+  ctx.clearRect(0, 0, c.width, c.height);
+  const bw = c.width / h.length;
+  for (let i = 0; i < h.length; i++) {
+    ctx.fillStyle = (i >= h.length - 2 && S.reading.clipped > .07) ? '#ff8a3d' : 'rgba(255,255,255,.75)';
+    const bh = Math.max(1, h[i] * c.height);
+    ctx.fillRect(i * bw, c.height - bh, bw, bh);
+  }
+}
+
+/* ---------- coach: rules + calm debounce with hysteresis ---------- */
+const coach = { candidate:null, since:0, current:null, shownAt:0, muted:{} };
+
+function evaluateTips(sticky) {
+  const r = S.reading; if (!r) return [];
+  const k = (kind) => kind === sticky ? 0.8 : 1;
+  const tips = [];
+  if (S.shake > 35 * k('still') && r.mean < 80)
+    tips.push({ kind:'still', msg:"It's dim, so photos blur easily. Hold still or lean on something." });
+  if (r.mean > 90 * k('backlit') && r.center < r.edges * (0.6 / k('backlit')) && S.lens !== 'front')
+    tips.push({ kind:'backlit', msg:'Your subject is darker than the background. The light is behind them.', fix:'Brighten subject', act:() => meterAt(.5, .5) });
+  if (r.clipped > .07 * k('blown') && r.mean > 70)
+    tips.push({ kind:'blown', msg:'Bright areas are turning pure white. Show less sky, or turn so the light is behind you.' });
+  if (r.mean < 55 / k('dark') && S.goal !== 'lowlight')
+    tips.push({ kind:'dark', msg:"It's dark. Low Light blends 8 frames for a cleaner photo.", fix:'Use Low Light', act:() => selectGoal('lowlight') });
+  if (S.tilt !== null && Math.abs(S.tilt) >= 1.5 * k('tilt') && Math.abs(S.tilt) <= 8)
+    tips.push({ kind:'tilt', msg:`Tilted ${Math.round(Math.abs(S.tilt))}°. Straighten until the line turns green.` });
+  if (r.std < 18 / k('haze') && r.mean > 60 && r.mean < 200)
+    tips.push({ kind:'haze', msg:'The picture looks hazy. Wipe the lens. Fingerprints are the #1 cause of soft photos.' });
+  if (r.crushed > .22 * k('shadows') && r.clipped < .01 && S.ev < 1.5)
+    tips.push({ kind:'shadows', msg:'Lots of the photo is going pure black.', fix:'Brighten', act:() => setEV(Math.min(S.ev + .5, 2)) });
+  return tips;
+}
+
+function updateCoach() {
+  const now = performance.now();
+  const sticky = coach.current ? coach.current.kind : coach.candidate;
+  const best = evaluateTips(sticky).find(t => !(coach.muted[t.kind] && now - coach.muted[t.kind] < 25000)) || null;
+  const bk = best ? best.kind : null;
+  if (bk !== coach.candidate) { coach.candidate = bk; coach.since = now; }
+
+  if (coach.current && now - coach.shownAt < 2500) {
+    if (best && best.kind === coach.current.kind) coach.current = best;
+  } else if (now - coach.since >= 1000) {
+    if (best && (!coach.current || coach.current.kind !== best.kind)) coach.shownAt = now;
+    coach.current = best;
+  }
+  if ((coach.current && coach.current.kind) !== (S.tip && S.tip.kind)) {
+    S.tip = coach.current;
+    renderOverlayTop();
+  } else if (coach.current) {
+    S.tip = coach.current; // refresh text (e.g. tilt degrees) without re-animating
+    const m = document.querySelector('.banner.tip .msg');
+    if (m) m.textContent = S.tip.msg;
+  }
+}
+
+let goalBanner = null, goalBannerTimer = null;
+function showGoalBanner(text) {
+  goalBanner = text;
+  clearTimeout(goalBannerTimer);
+  goalBannerTimer = setTimeout(() => { goalBanner = null; renderOverlayTop(); }, 3500);
+  renderOverlayTop();
+}
+
+function renderOverlayTop() {
+  const box = $('overlayTop');
+  box.innerHTML = '';
+  if (S.tip) {
+    const t = S.tip;
+    const el = document.createElement('div');
+    el.className = 'banner tip';
+    el.innerHTML = `<span style="color:var(--warn)">${icon('warn', 20, 2)}</span><span class="msg"></span>` +
+      (t.fix ? `<button class="fix"></button>` : '') + `<button class="x" aria-label="Dismiss">${icon('x', 14, 2.4)}</button>`;
+    el.querySelector('.msg').textContent = t.msg;
+    if (t.fix) {
+      const b = el.querySelector('.fix');
+      b.textContent = t.fix;
+      b.onclick = () => { t.act(); muteTip(t.kind); };
+    }
+    el.querySelector('.x').onclick = () => muteTip(t.kind);
+    box.appendChild(el);
+  } else if (goalBanner) {
+    const el = document.createElement('div');
+    el.className = 'banner goal';
+    el.textContent = goalBanner;
+    box.appendChild(el);
+  }
+}
+
+function muteTip(kind) {
+  coach.muted[kind] = performance.now();
+  coach.current = null; S.tip = null;
+  renderOverlayTop();
+}
+
+/* =====================================================================
+   Motion: level + shake
+   ===================================================================== */
+async function requestMotion() {
+  try {
+    if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+      const r = await DeviceMotionEvent.requestPermission();
+      if (r !== 'granted') return;
+    }
+    addEventListener('devicemotion', onMotion);
+  } catch (_) { /* level just stays hidden */ }
+}
+
+let shakeSmooth = 0;
+function onMotion(e) {
+  const g = e.accelerationIncludingGravity;
+  if (g && g.x !== null) {
+    // Browsers disagree on the sign of gravity. Learn it from how the phone is usually held (upright).
+    if (S.gSign === null && Math.abs(g.y) > 7) {
+      S.gSamples.push(Math.sign(g.y));
+      if (S.gSamples.length >= 15) S.gSign = S.gSamples.reduce((a, b) => a + b, 0) < 0 ? 1 : -1;
+    }
+    const s = S.gSign ?? (g.y < 0 ? 1 : -1);
+    const gx = g.x * s, gy = g.y * s, gz = g.z || 0;
+    if (Math.abs(gz) / 9.81 > 0.85) {
+      S.tilt = null;
+    } else {
+      const angle = Math.atan2(gx, -gy) * 180 / Math.PI;    // 0 upright, ±90 landscape
+      const upright = Math.round(angle / 90) * 90;
+      S.tilt = angle - upright;
+      // If the page itself rotated to landscape, the screen is already level with the world.
+      const pageLandscape = innerWidth > innerHeight;
+      S.upright = (Math.abs(upright) === 90 && pageLandscape) ? 0 : upright;
+    }
+  }
+  const r = e.rotationRate;
+  if (r) {
+    const m = Math.hypot(r.alpha || 0, r.beta || 0, r.gamma || 0);
+    shakeSmooth = shakeSmooth * .8 + m * .2;
+    S.shake = shakeSmooth;
+  }
+}
+
+let wasLevel = false;
+function renderLevel() {
+  const el = $('level');
+  if (S.tilt === null || Math.abs(S.tilt) > 8 || S.busy) { el.classList.add('hidden'); }
+  else {
+    el.classList.remove('hidden');
+    const ok = Math.abs(S.tilt) < 1;
+    el.classList.toggle('ok', ok);
+    el.style.transform = `rotate(${-S.upright}deg)`;
+    el.querySelector('.line').style.transform = `rotate(${-S.tilt}deg)`;
+    if (ok && !wasLevel && navigator.vibrate) navigator.vibrate(8);
+    wasLevel = ok;
+  }
+  requestAnimationFrame(renderLevel);
+}
+
+/* =====================================================================
+   Brightness: preview via CSS, applied to the photo with a tone curve.
+   "Tap to meter": brightness is set so what you tap looks right.
+   ===================================================================== */
+function setEV(ev) {
+  S.ev = clamp(Math.round(ev * 10) / 10, -2, 2);
+  $('evSlider').value = S.ev;
+  $('evBtn').classList.toggle('on', S.ev !== 0);
+  applyPreviewTransform();
+  renderReadout();
+}
+
+const toLin = (v) => Math.pow(v / 255, 2.2);
+
+function meterAt(nx, ny) {
+  if (!video.videoWidth) return;
+  const r = cropRect();
+  const size = 0.14;
+  const sx = r.sx + clamp(nx - size / 2, 0, 1 - size) * r.sw, sy = r.sy + clamp(ny - size / 2, 0, 1 - size) * r.sh;
+  ana.width = 16; ana.height = 16;
+  anaCtx.drawImage(video, sx, sy, r.sw * size, r.sh * size, 0, 0, 16, 16);
+  const d = anaCtx.getImageData(0, 0, 16, 16).data;
+  let s = 0; for (let i = 0; i < d.length; i += 4) s += 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+  const mean = Math.max(4, s / 256);
+  setEV(Math.log2(toLin(118) / toLin(mean)));
+}
+
+/* =====================================================================
+   Capture pipeline
+   ===================================================================== */
+const work = $('work');
+const nextFrame = () => new Promise((res) => {
+  if (video.requestVideoFrameCallback) video.requestVideoFrameCallback(() => res());
+  else setTimeout(res, 40);
+});
+
+function frameSize(maxLong) {
+  const r = cropRect(S.hwZoom ? S.pinchZoom : totalDigital());
+  const scale = Math.min(1, maxLong / Math.max(r.sw, r.sh));
+  return { r, w: Math.round(r.sw * scale), h: Math.round(r.sh * scale) };
+}
+
+function drawFrame(ctx, fs) {
+  const mirror = video.classList.contains('mirror');
+  ctx.save();
+  if (mirror) { ctx.translate(fs.w, 0); ctx.scale(-1, 1); }
+  ctx.drawImage(video, fs.r.sx, fs.r.sy, fs.r.sw, fs.r.sh, 0, 0, fs.w, fs.h);
+  ctx.restore();
+}
+
+/** Laplacian variance on a small grayscale copy: higher = sharper. */
+const sharpC = document.createElement('canvas');
+const sharpCtx = sharpC.getContext('2d', { willReadFrequently:true });
+function sharpness(fs) {
+  const W = 320, H = Math.round(320 * fs.h / fs.w);
+  sharpC.width = W; sharpC.height = H;
+  sharpCtx.drawImage(video, fs.r.sx, fs.r.sy, fs.r.sw, fs.r.sh, 0, 0, W, H);
+  const d = sharpCtx.getImageData(0, 0, W, H).data;
+  const g = new Float32Array(W * H);
+  for (let i = 0, j = 0; j < g.length; i += 4, j++) g[j] = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+  let s = 0, s2 = 0, n = 0;
+  for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
+    const j = y * W + x;
+    const l = 4 * g[j] - g[j - 1] - g[j + 1] - g[j - W] - g[j + W];
+    s += l; s2 += l * l; n++;
+  }
+  const m = s / n; return s2 / n - m * m;
+}
+
+function toneLUT(ev, lift = 0) {
+  const lut = new Uint8ClampedArray(256);
+  const gain = Math.pow(2, ev);
+  for (let v = 0; v < 256; v++) {
+    let x = toLin(v) * gain;
+    x = x / (1 + Math.max(0, gain - 1) * 0.12 * x);          // soft shoulder when brightening
+    let o = Math.pow(Math.min(1, x), 1 / 2.2);
+    if (lift) o = 1 - Math.pow(1 - o, 1 + lift);              // shadow lift for night shots
+    lut[v] = Math.round(o * 255);
+  }
+  return lut;
+}
+
+function applyLUT(data, lut) {
+  for (let i = 0; i < data.length; i += 4) { data[i] = lut[data[i]]; data[i + 1] = lut[data[i + 1]]; data[i + 2] = lut[data[i + 2]]; }
+}
+
+/** Light unsharp mask (3×3) + vibrance. In place. */
+function clarity(img, amount = 0.35, vibrance = 0.14) {
+  const { width:w, height:h, data:d } = img;
+  const src = new Uint8ClampedArray(d);
+  for (let y = 1; y < h - 1; y++) {
+    let i = (y * w + 1) * 4;
+    for (let x = 1; x < w - 1; x++, i += 4) {
+      for (let c = 0; c < 3; c++) {
+        const k = i + c;
+        const blur = (src[k - 4] + src[k + 4] + src[k - w * 4] + src[k + w * 4]) * 0.25;
+        d[k] = src[k] + amount * (src[k] - blur);
+      }
+      const r = d[i], g = d[i + 1], b = d[i + 2];
+      const mx = Math.max(r, g, b), avg = (r + g + b) / 3;
+      const amt = vibrance * (1 - (mx - Math.min(r, g, b)) / 255);
+      d[i] = r + (r - avg) * amt; d[i + 1] = g + (g - avg) * amt; d[i + 2] = b + (b - avg) * amt;
+    }
+  }
+}
+
+async function captureSingle(maxLong) {
+  await nextFrame();
+  const fs = frameSize(maxLong);
+  work.width = fs.w; work.height = fs.h;
+  const ctx = work.getContext('2d', { willReadFrequently:true });
+  drawFrame(ctx, fs);
+  return { ctx, fs, notes:[] };
+}
+
+async function captureBurst(maxLong, count = 5) {
+  const fs0 = frameSize(maxLong);
+  work.width = fs0.w; work.height = fs0.h;
+  const ctx = work.getContext('2d', { willReadFrequently:true });
+  let best = -1, worst = Infinity;
+  for (let i = 0; i < count; i++) {
+    await nextFrame();
+    const fs = frameSize(maxLong);
+    const s = sharpness(fs);
+    worst = Math.min(worst, s);
+    if (s > best) { best = s; drawFrame(ctx, fs); } // same video frame → copy the winner right away
+  }
+  const ratio = worst > 0 ? best / worst : 1;
+  return { ctx, fs: fs0, notes:[
+    ['Burst', `${count} frames`, ratio > 1.15
+      ? `Kept the sharpest one, about ${ratio.toFixed(1)}× crisper than the worst.`
+      : 'All frames were equally sharp. Steady hands!']
+  ]};
+}
+
+/** Aligned multi-frame average for low light. */
+async function captureStack(maxLong, count = 8) {
+  const fs = frameSize(maxLong);
+  const w = fs.w, h = fs.h;
+  work.width = w; work.height = h;
+  const ctx = work.getContext('2d', { willReadFrequently:true });
+  const acc = new Uint16Array(w * h * 3);
+  const cnt = new Uint8Array(w * h);
+  const SC = 8, sw = Math.floor(w / SC), sh = Math.floor(h / SC);
+  const small = document.createElement('canvas'); small.width = sw; small.height = sh;
+  const sctx = small.getContext('2d', { willReadFrequently:true });
+  let ref = null, maxShift = 0;
+
+  for (let f = 0; f < count; f++) {
+    await nextFrame();
+    drawFrame(ctx, fs);
+    sctx.drawImage(work, 0, 0, sw, sh);
+    const sd = sctx.getImageData(0, 0, sw, sh).data;
+    const lum = new Float32Array(sw * sh);
+    for (let i = 0, j = 0; j < lum.length; i += 4, j++) lum[j] = sd[i] + sd[i + 1] + sd[i + 2];
+
+    let dx = 0, dy = 0;
+    if (!ref) ref = lum;
+    else {
+      // Search ±6 small pixels (±48 full-res) on the center 60% for the best match.
+      let bestErr = Infinity;
+      const x0 = Math.floor(sw * .2), x1 = Math.floor(sw * .8), y0 = Math.floor(sh * .2), y1 = Math.floor(sh * .8);
+      for (let oy = -6; oy <= 6; oy++) for (let ox = -6; ox <= 6; ox++) {
+        let err = 0;
+        for (let y = y0; y < y1; y += 2) {
+          const ry = y * sw, ly = (y + oy) * sw;
+          for (let x = x0; x < x1; x += 2) err += Math.abs(ref[ry + x] - lum[ly + x + ox]);
+        }
+        if (err < bestErr) { bestErr = err; dx = ox; dy = oy; }
+      }
+      maxShift = Math.max(maxShift, Math.abs(dx), Math.abs(dy));
+    }
+
+    const d = ctx.getImageData(0, 0, w, h).data;
+    const fx = dx * SC, fy = dy * SC;   // frame pixel (x+fx, y+fy) lines up with reference pixel (x, y)
+    for (let y = 0; y < h; y++) {
+      const sy = y + fy; if (sy < 0 || sy >= h) continue;
+      for (let x = 0; x < w; x++) {
+        const sx = x + fx; if (sx < 0 || sx >= w) continue;
+        const si = (sy * w + sx) * 4, ai = (y * w + x) * 3;
+        acc[ai] += d[si]; acc[ai + 1] += d[si + 1]; acc[ai + 2] += d[si + 2];
+        cnt[y * w + x]++;
+      }
+    }
+    setBusy(`Blending frames… ${f + 1}/${count}`);
+  }
+
+  const out = ctx.createImageData(w, h);
+  const o = out.data;
+  let lsum = 0;
+  for (let p = 0, ai = 0, oi = 0; p < cnt.length; p++, ai += 3, oi += 4) {
+    const c = cnt[p] || 1;
+    o[oi] = acc[ai] / c; o[oi + 1] = acc[ai + 1] / c; o[oi + 2] = acc[ai + 2] / c; o[oi + 3] = 255;
+    if ((p & 63) === 0) lsum += 0.299 * o[oi] + 0.587 * o[oi + 1] + 0.114 * o[oi + 2];
+  }
+  const mean = lsum / Math.ceil(cnt.length / 64);
+  // Auto-brighten toward a natural night look (never all the way to daylight).
+  const autoEV = clamp(Math.log2(toLin(95) / toLin(Math.max(mean, 6))), 0, 1.6);
+  applyLUT(o, toneLUT(autoEV + S.ev, 0.25));
+  ctx.putImageData(out, 0, 0);
+  return { ctx, fs, toned:true, notes:[
+    ['Night stack', `${count} frames`, `Lined up and blended ${count} frames, cutting grain by about ${Math.round((1 - 1 / Math.sqrt(count)) * 100)}%.`],
+    ['Steadiness', maxShift <= 1 ? 'Rock solid' : (maxShift <= 3 ? 'Good' : 'Shaky'),
+      maxShift <= 3 ? 'Little movement between frames.' : 'The phone moved a lot. Brace it next time for a sharper result.']
+  ]};
+}
+
+async function capture() {
+  if (S.busy || !video.videoWidth) return;
+  S.busy = true;
+  $('shutter').classList.add('busy');
+  flashShutter();
+  const goal = S.goal;
+  const lensName = LENS_META[S.lens].name;
+  const sceneMean = S.reading ? S.reading.mean : 128;
+  try {
+    let res;
+    if (goal === 'action') { setBusy('Picking the sharpest…'); res = await captureBurst(4032, 5); }
+    else if (goal === 'lowlight') { setBusy('Hold still…'); res = await captureStack(3264, 8); }
+    else res = await captureSingle(4032);
+
+    const { ctx, fs } = res;
+    if (!res.toned && (S.ev !== 0 || goal === 'scenery')) {
+      setBusy('Finishing…');
+      await new Promise(r => setTimeout(r, 0));
+      const img = ctx.getImageData(0, 0, fs.w, fs.h);
+      if (S.ev !== 0) applyLUT(img.data, toneLUT(S.ev));
+      if (goal === 'scenery') clarity(img);
+      ctx.putImageData(img, 0, 0);
+      if (goal === 'scenery') res.notes.push(['Clarity', 'On', 'Sharpened fine detail and added a little color.']);
+    }
+
+    const blob = await new Promise(r => work.toBlob(r, 'image/jpeg', 0.92));
+    if (!blob) throw new Error('encode');
+    const url = URL.createObjectURL(blob);
+    const shot = { url, blob, w: fs.w, h: fs.h, goal, lensName, zoom: zoomLabel(), ev: S.ev, sceneMean, notes: res.notes, at: new Date() };
+    S.shots.unshift(shot);
+    if (S.shots.length > 12) { const old = S.shots.pop(); URL.revokeObjectURL(old.url); }
+    $('thumb').style.backgroundImage = `url(${url})`;
+  } catch (e) {
+    showGoalBanner("Couldn't take that photo. Try again.");
+  } finally {
+    S.busy = false;
+    setBusy(null);
+    $('shutter').classList.remove('busy');
+  }
+}
+
+function setBusy(text) {
+  const b = $('busy');
+  if (!text) { b.classList.add('hidden'); return; }
+  b.classList.remove('hidden');
+  b.querySelector('span').textContent = text;
+}
+
+function flashShutter() {
+  const f = $('flash'); f.classList.add('on');
+  requestAnimationFrame(() => requestAnimationFrame(() => f.classList.remove('on')));
+  if (navigator.vibrate) navigator.vibrate(12);
+}
+
+/* =====================================================================
+   Shot report
+   ===================================================================== */
+function sceneMeaning(m) {
+  if (m < 50) return ['Dark', 'Very little light. Expect some grain.'];
+  if (m < 90) return ['Dim', 'Indoor-level light. Hold steady.'];
+  if (m < 170) return ['Good', 'Plenty of light for a clean photo.'];
+  return ['Bright', 'Lots of light. Watch for white-out skies.'];
+}
+
+function nextTip(shot) {
+  if (shot.goal === 'lowlight') return 'For the cleanest night shots, set the phone on something solid before you tap.';
+  if (shot.sceneMean < 55) return 'It was dark. Try the Low Light goal next time, which blends 8 frames for less grain.';
+  if (shot.goal === 'people') return 'Move your subject away from the wall behind them. More distance means a softer background.';
+  if (shot.goal === 'action') return 'Shoot slightly before the peak moment. Bursts catch what your thumb misses.';
+  if (shot.goal === 'auto') return 'Nice. Try tapping your subject before you shoot, so brightness is set for what matters.';
+  return 'Looks solid. Take a second shot. Pros always do.';
+}
+
+function openReview(shot) {
+  if (!shot) return;
+  const mp = (shot.w * shot.h / 1e6);
+  const [sceneWord, sceneText] = sceneMeaning(shot.sceneMean);
+  const lines = [
+    ['Goal', goalById(shot.goal).title, goalById(shot.goal).changed],
+    ['Lens', `${shot.lensName} · ${shot.zoom}`, LENS_META[Object.keys(LENS_META).find(k => LENS_META[k].name === shot.lensName) || 'main'].best],
+    ['Light', sceneWord, sceneText],
+    ...shot.notes,
+    ['Brightness', shot.ev === 0 ? 'Auto' : `${shot.ev > 0 ? '+' : ''}${shot.ev.toFixed(1)} EV`, shot.ev === 0 ? 'Left to the camera.' : (shot.ev > 0 ? 'Brightened to suit what you tapped.' : 'Darkened to keep bright areas from whiting out.')],
+    ['Size', `${mp.toFixed(1)} MP`, mp >= 8 ? 'Plenty for prints and sharing.' : 'Fine for sharing. Zooming in less keeps more detail.']
+  ];
+  const body = $('reviewBody');
+  body.innerHTML = `
+    <img id="reviewImg" alt="Your photo">
+    <div class="card"><h3>What happened</h3><div id="rlines"></div></div>
+    <div class="tipcard"><span style="color:var(--good)">${icon('bulb', 20)}</span><div id="rtip"></div></div>
+    <button class="btn" id="saveBtn">Save to Photos</button>
+    <button class="btn ghost" id="shareHint" disabled style="opacity:.7;font-weight:500;font-size:13px">Tip: in the share sheet, choose "Save Image"</button>`;
+  $('reviewImg').src = shot.url;
+  const rl = $('rlines');
+  for (const [k, v, p] of lines) {
+    const row = document.createElement('div'); row.className = 'row';
+    row.innerHTML = '<div class="k"><span></span><span></span></div><p></p>';
+    row.querySelector('.k span:first-child').textContent = k;
+    row.querySelector('.k span:last-child').textContent = v;
+    row.querySelector('p').textContent = p;
+    rl.appendChild(row);
+  }
+  $('rtip').textContent = nextTip(shot);
+  $('saveBtn').onclick = () => saveShot(shot);
+  $('reviewSheet').classList.remove('hidden');
+}
+
+async function saveShot(shot) {
+  const name = `Framewise-${shot.at.toISOString().replace(/[:.]/g, '-').slice(0, 19)}.jpg`;
+  const file = new File([shot.blob], name, { type:'image/jpeg' });
+  if (navigator.canShare && navigator.canShare({ files:[file] })) {
+    try { await navigator.share({ files:[file] }); return; } catch (e) { if (e && e.name === 'AbortError') return; }
+  }
+  const a = document.createElement('a'); a.href = shot.url; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+}
+
+/* =====================================================================
+   UI rendering + controls
+   ===================================================================== */
+function zoomLabel() {
+  const plan = lensPlan(S.lens);
+  const base = { ultra:.5, main:1, tele:4, front:1 }[plan.dev] || 1;
+  const hw = S.hwZoom ? S.hwZoom : 1;
+  const z = base * hw * totalDigital();
+  return (Math.round(z * 10) / 10) + '×';
+}
+
+function renderReadout() {
+  const parts = [];
+  if (video.videoWidth) parts.push(`${(video.videoWidth * video.videoHeight / 1e6).toFixed(0)} MP`);
+  parts.push(zoomLabel());
+  if (S.ev) parts.push(`${S.ev > 0 ? '+' : ''}${S.ev.toFixed(1)} EV`);
+  $('readout').textContent = parts.join('  ·  ');
+}
+
+function renderLenses() {
+  const row = $('lenses'); row.innerHTML = '';
+  const front = S.lens === 'front';
+  row.classList.toggle('hidden', front);
+  $('lensHint').textContent = `${LENS_META[S.lens].name} · ${LENS_META[S.lens].best}`;
+  if (front) return;
+  for (const role of ROW) {
+    const dev = lensPlan(role).dev;
+    if (!S.devices[dev] && !(role === 'main' || role === 'main2x')) continue;
+    const b = document.createElement('button');
+    const on = S.lens === role;
+    b.className = 'lens' + (on ? ' on' : '');
+    b.textContent = on && /^\d/.test(LENS_META[role].label) ? LENS_META[role].label + '×' : LENS_META[role].label;
+    b.setAttribute('aria-label', `${LENS_META[role].name}: ${LENS_META[role].best}`);
+    b.onclick = () => selectLens(role);
+    row.appendChild(b);
+  }
+}
+
+function renderGoals() {
+  const row = $('goals'); row.innerHTML = '';
+  for (const g of GOALS) {
+    const b = document.createElement('button');
+    b.className = 'chip' + (S.goal === g.id ? ' on' : '');
+    b.innerHTML = icon(g.icon, 16, 2) + `<span>${g.title}</span>`;
+    b.onclick = () => selectGoal(g.id);
+    row.appendChild(b);
+  }
+}
+
+async function selectLens(role) {
+  if (S.busy) return;
+  // Picking a lens by hand while in a lens-driven goal drops back to Auto.
+  if ((S.goal === 'people' && role !== 'main2x') || (S.goal === 'closeup' && role !== 'macro')) {
+    S.goal = 'auto'; renderGoals();
+  }
+  await openLens(role).catch(cameraError);
+}
+
+async function selectGoal(id) {
+  if (S.busy) return;
+  const g = goalById(id);
+  const prevLensGoal = S.goal === 'people' || S.goal === 'closeup';
+  S.goal = id;
+  setEV(0);
+  renderGoals();
+  const missing = g.lens && !S.devices[lensPlan(g.lens).dev] && !['main','main2x'].includes(g.lens);
+  showGoalBanner(missing ? `Camera tuned for ${g.title.toLowerCase()}.` : g.changed);
+  if (g.lens && g.lens !== S.lens && !missing) await openLens(g.lens).catch(cameraError);
+  // Leaving a lens-driven goal (People 2×, Close-up) for one that doesn't pick a lens: back to 1×.
+  else if (!g.lens && (S.lens === 'main2x' || S.lens === 'macro') && prevLensGoal) await openLens('main').catch(cameraError);
+  // keep the selected chip visible
+  const chip = $('goals').children[GOALS.indexOf(g)];
+  if (chip && chip.scrollIntoView) chip.scrollIntoView({ inline:'center', block:'nearest', behavior:'smooth' });
+}
+
+/* tap to focus/meter + pinch zoom */
+function setupGestures() {
+  const frame = $('frame');
+  let pinchStart = null, startZoom = 1, moved = false, badgeTimer = null;
+  frame.addEventListener('touchstart', (e) => {
+    moved = false;
+    if (e.touches.length === 2) {
+      const [a, b] = e.touches;
+      pinchStart = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+      startZoom = S.pinchZoom;
+    }
+  }, { passive:true });
+  frame.addEventListener('touchmove', (e) => {
+    if (e.touches.length === 2 && pinchStart) {
+      moved = true;
+      const [a, b] = e.touches;
+      const d = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+      S.pinchZoom = clamp(startZoom * d / pinchStart, 1, 5);
+      applyPreviewTransform(); renderReadout();
+      const badge = $('zoomBadge'); badge.textContent = zoomLabel(); badge.classList.add('show');
+      clearTimeout(badgeTimer); badgeTimer = setTimeout(() => badge.classList.remove('show'), 900);
+    }
+  }, { passive:true });
+  frame.addEventListener('touchend', (e) => { if (e.touches.length < 2) pinchStart = null; });
+  frame.addEventListener('click', (e) => {
+    if (moved || e.target.closest('button')) return;
+    const rect = frame.getBoundingClientRect();
+    const px = e.clientX - rect.left, py = e.clientY - rect.top;
+    const ring = $('ring');
+    ring.style.left = px + 'px'; ring.style.top = py + 'px';
+    ring.classList.remove('show'); void ring.offsetWidth; ring.classList.add('show');
+    // Map from the (zoomed) preview to the visible crop.
+    let nx = px / rect.width, ny = py / rect.height;
+    if (video.classList.contains('mirror')) nx = 1 - nx;
+    meterAt(nx, ny);
+    tryFocusAt(nx, ny);
+  });
+}
+
+/** Real focus point where the browser supports it (most don't yet). */
+function tryFocusAt(nx, ny) {
+  const caps = S.track && S.track.getCapabilities ? S.track.getCapabilities() : {};
+  if (!caps.pointsOfInterest && !caps.focusMode) return;
+  const adv = {};
+  if (caps.pointsOfInterest) adv.pointsOfInterest = [{ x:nx, y:ny }];
+  if (caps.focusMode && caps.focusMode.includes('single-shot')) adv.focusMode = 'single-shot';
+  S.track.applyConstraints({ advanced:[adv] }).catch(() => {});
+}
+
+async function toggleTorch() {
+  if (!S.track) return;
+  S.torch = !S.torch;
+  try { await S.track.applyConstraints({ advanced:[{ torch:S.torch }] }); }
+  catch (_) { S.torch = false; }
+  $('torchBtn').classList.toggle('on', S.torch);
+}
+
+function updateTorchButton() {
+  const caps = S.track && S.track.getCapabilities ? S.track.getCapabilities() : {};
+  $('torchBtn').hidden = !caps.torch;
+}
+
+/* =====================================================================
+   Learn sheet
+   ===================================================================== */
+function openLearn() {
+  const L = (ic, h, p) => `<div class="learn"><div class="g">${icon(ic, 20)}</div><div><h4>${h}</h4><p>${p}</p></div></div>`;
+  $('learnBody').innerHTML = `
+    <div class="card"><h3>Pick a goal</h3>${GOALS.map(g => L(g.icon, g.title, g.explain)).join('')}</div>
+    <div class="card"><h3>Three habits that fix most photos</h3>
+      ${L('hand', 'Tap your subject', 'Framewise sets brightness for whatever you tap, so faces don\'t come out dark against a bright window.')}
+      ${L('grid', 'Use the grid', 'Put your subject on a line, not dead center. Keep horizons on the top or bottom line.')}
+      ${L('sparkles', 'Wipe the lens', 'Pocket smudges make photos hazy. Framewise warns you when it sees haze.')}
+    </div>
+    <div class="card"><h3>Lenses</h3>
+      ${L('camera', '0.5× Ultra Wide', 'Fits a whole room. Stretches things near the edges, so keep people toward the middle.')}
+      ${L('camera', '1× Main', 'Your best lens: sharpest, and best in low light. When in doubt, use 1×.')}
+      ${L('camera', '2× Portrait', 'Most flattering for faces.')}
+      ${L('camera', 'Tele', 'Brings far things close and makes backgrounds look bigger and closer.')}
+    </div>
+    <div class="card"><h3>Web version vs. the iPhone app</h3>
+      <table class="cmp">
+        <tr><th></th><th>Web</th><th>App</th></tr>
+        <tr><td>Goals, coach, level, grid</td><td class="y">Yes</td><td class="y">Yes</td></tr>
+        <tr><td>Sharpest-of-burst, night stack</td><td class="y">Yes</td><td class="n">No (uses Apple's processing)</td></tr>
+        <tr><td>Real background blur (aperture)</td><td class="n">No</td><td class="y">Yes, ƒ/1.48–ƒ/4</td></tr>
+        <tr><td>Shutter / ISO control</td><td class="n">No</td><td class="y">Yes</td></tr>
+        <tr><td>48 MP / RAW</td><td class="n">No</td><td class="y">Yes</td></tr>
+        <tr><td>Camera Control button</td><td class="n">No</td><td class="y">Yes</td></tr>
+        <tr><td>Saves to Photos</td><td>Via Share</td><td class="y">Automatically</td></tr>
+      </table>
+    </div>
+    <button class="btn ghost" id="replayIntro">Replay intro</button>`;
+  $('replayIntro').onclick = () => { $('learnSheet').classList.add('hidden'); showOnboarding(true); };
+  $('learnSheet').classList.remove('hidden');
+}
+
+/* =====================================================================
+   Onboarding + errors + boot
+   ===================================================================== */
+const OB = [
+  ['sparkles', 'Pick a goal, not settings', 'Tell Framewise what you want (people, action, scenery, night) and it sets up the shot for you.'],
+  ['bulb', 'A coach in the viewfinder', 'Subject in shadow, crooked horizon, smudged lens: Framewise spots it and helps you fix it before you shoot.'],
+  ['stack', 'Smarter shots', 'Action keeps the sharpest frame of a burst. Low Light blends 8 frames to cut the grain.']
+];
+let obIndex = 0;
+function showOnboarding(replay) {
+  obIndex = 0;
+  $('onboard').classList.remove('hidden');
+  renderOB(replay);
+}
+function renderOB(replay) {
+  const [ic, h, p] = OB[obIndex];
+  $('obPage').innerHTML = `<div class="big">${icon(ic, 64, 1.3)}</div><h1></h1><p></p>`;
+  $('obPage').querySelector('h1').textContent = h;
+  $('obPage').querySelector('p').textContent = p;
+  $('obPage').style.animation = 'none'; void $('obPage').offsetWidth; $('obPage').style.animation = '';
+  $('dots').innerHTML = OB.map((_, i) => `<i class="${i === obIndex ? 'on' : ''}"></i>`).join('');
+  const last = obIndex === OB.length - 1;
+  $('obNext').textContent = last ? (replay || S.track ? 'Done' : 'Start camera') : 'Next';
+}
+$('obNext').onclick = async () => {
+  if (obIndex < OB.length - 1) { obIndex++; renderOB(); return; }
+  $('onboard').classList.add('hidden');
+  try { localStorage.setItem('fw.onboarded', '1'); } catch (_) {}
+  if (!S.track) await start();
+};
+
+function cameraError(err) {
+  const name = err && err.name;
+  let title = "Camera didn't start", text = 'Close other apps that use the camera, then try again.';
+  if (name === 'NotAllowedError' || name === 'SecurityError') {
+    title = 'Camera access is off';
+    text = 'Allow camera access for this site: Settings › Apps › Safari › Camera › Allow. Or tap "aA" in the address bar › Website Settings.';
+  } else if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    title = 'No camera here';
+    text = 'Open this page in Safari on your iPhone.';
+  }
+  $('errIcon').innerHTML = icon('camera', 44, 1.5);
+  $('errTitle').textContent = title;
+  $('errText').textContent = text;
+  $('errorBox').classList.remove('hidden');
+}
+$('errRetry').onclick = () => { $('errorBox').classList.add('hidden'); start(); };
+
+let motionAsked = false;
+function askMotionOnNextTap() {
+  // iOS only shows the motion prompt from a tap, and two prompts at once can collide with the
+  // camera prompt, so we ask on the first tap after the camera is running.
+  if (motionAsked) return;
+  const once = () => { if (motionAsked) return; motionAsked = true; requestMotion(); removeEventListener('touchend', once); removeEventListener('click', once); };
+  addEventListener('touchend', once);
+  addEventListener('click', once);
+}
+
+async function start() {
+  try {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('nomedia');
+    // First open by facing mode to get permission (labels are hidden before that), then map lenses.
+    S.stream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:'environment', width:{ ideal:4032 }, height:{ ideal:3024 } }, audio:false });
+    S.track = S.stream.getVideoTracks()[0];
+    video.srcObject = S.stream;
+    await video.play().catch(() => {});
+    await waitForSize();
+    await discover();
+    const currentId = S.track.getSettings().deviceId;
+    // If the default stream isn't the physical main lens, switch to it.
+    if (S.devices.main && currentId !== S.devices.main) await openLens('main');
+    else { S.lens = 'main'; await setZoom(1); sizeFrame(); renderLenses(); renderReadout(); }
+    if (!S.devices.main) S.devices.main = currentId;
+    $('flipBtn').hidden = !S.devices.front;
+    updateTorchButton();
+    renderGoals();
+    setTimeout(askMotionOnNextTap, 0);
+  } catch (err) {
+    cameraError(err);
+  }
+}
+
+function boot() {
+  $('torchBtn').innerHTML = icon('torch');
+  $('gridBtn').innerHTML = icon('grid');
+  $('learnBtn').innerHTML = icon('cap');
+  $('evBtn').innerHTML = icon('sun');
+  $('flipBtn').innerHTML = icon('flip');
+  renderGoals();
+
+  $('torchBtn').onclick = toggleTorch;
+  $('gridBtn').onclick = () => { S.grid = !S.grid; $('grid').classList.toggle('hidden', !S.grid); $('gridBtn').classList.toggle('good', S.grid); };
+  $('learnBtn').onclick = openLearn;
+  $('learnDone').onclick = () => $('learnSheet').classList.add('hidden');
+  $('reviewDone').onclick = () => $('reviewSheet').classList.add('hidden');
+  $('evBtn').onclick = () => $('bright').classList.toggle('hidden');
+  $('evSlider').oninput = (e) => setEV(parseFloat(e.target.value));
+  $('evReset').onclick = () => setEV(0);
+  $('flipBtn').onclick = () => selectLens(S.lens === 'front' ? 'main' : 'front').then(updateTorchButton);
+  $('shutter').onclick = capture;
+  $('thumb').onclick = () => openReview(S.shots[0]);
+  // Volume-button shutters aren't available on the web; Enter/Space works with a keyboard.
+  addEventListener('keydown', (e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); capture(); } });
+  addEventListener('resize', () => setTimeout(sizeFrame, 100));
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) { stopStream(); }
+    else if (S.devices.main) { openLens(S.lens).then(updateTorchButton).catch(cameraError); }
+  });
+  setupGestures();
+  setInterval(analyze, 250);
+  requestAnimationFrame(renderLevel);
+
+  let onboarded = false;
+  try { onboarded = localStorage.getItem('fw.onboarded') === '1'; } catch (_) {}
+  if (onboarded) {
+    start();
+  } else {
+    showOnboarding(false);
+  }
+}
+
+if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+
+// Test hooks
+window.FW = { S, selectGoal, selectLens, capture, openReview, evaluateTips, toneLUT, classify };
+
+boot();
+</script>
+</body>
+</html>
