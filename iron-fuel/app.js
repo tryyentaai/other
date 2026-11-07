@@ -71,15 +71,16 @@ function renderToday(){
   view.innerHTML = h;
 }
 function readinessCard(){
-  const c = ui.ck = ui.ck || {sleep:3, energy:7, fatigue:2, sore:{push:1, pull:1, legs:1, core:1}, ill:false, hunger:5};
+  const prev = (S.checkins||[]).slice(-1)[0], snap = v => v >= 7 ? 8 : v >= 4 ? 5 : 1;
+  const c = ui.ck = ui.ck || {sleep:3, energy:7, fatigue:2, sore: prev && prev.sore ? {push:snap(prev.sore.push), pull:snap(prev.sore.pull), legs:snap(prev.sore.legs), core:snap(prev.sore.core)} : {push:1, pull:1, legs:1, core:1}, ill:false, hunger:5};
   const seg = (k, n0, n1) => `<div class="seg" role="group">${range(n0, n1).map(v => `<button data-act="ck" data-k="${k}" data-v="${v}" aria-pressed="${c[k] === v}">${v}</button>`).join('')}</div>`;
-  const slider = (k, v, lab, path) => `<div class="q"><div class="lab">${lab}<b class="val num" id="v-${k}">${v}</b></div><input type="range" min="0" max="10" value="${v}" data-ck="${path || k}" data-out="v-${k}" aria-label="${lab}"></div>`;
+  const slider = (k, v, lab, path) => `<div class="q"><div class="lab">${lab}<b class="val num" id="v-${k}">${v}</b></div><input type="range" min="0" max="10" value="${v}" data-ck="${path || k}" data-out="v-${k}" aria-label="${lab.replace(/<[^>]+>/g, '')}"></div>`;
   return `<div class="card"><div class="row"><h3 class="sp">Readiness</h3><span class="sub">30 seconds</span>${info('light')}</div>
    <div class="q"><div class="lab">Sleep quality <span>1 awful · 5 great</span></div>${seg('sleep',1,5)}</div>
    ${slider('energy', c.energy, 'Energy <span class="sub">0–10</span>')}
    <div class="q"><div class="lab">Whole-body fatigue <span>1 fresh · 5 wrecked</span></div>${seg('fatigue',1,5)}</div>
-   <h2 style="margin-top:20px">Soreness 0–10</h2>
-   ${Object.keys(E.REGION_LABEL).map(r => slider('s-' + r, c.sore[r], E.REGION_LABEL[r], 'sore.' + r)).join('')}
+   <h2 style="margin-top:20px">Soreness</h2>
+   ${Object.keys(E.REGION_LABEL).map(r => `<div class="q"><div class="lab">${E.REGION_LABEL[r]}</div><div class="seg" role="group" aria-label="${E.REGION_LABEL[r]} soreness">${[[1,'Fine'],[5,'Sore'],[8,'Wrecked']].map(([v, t]) => `<button data-act="sore" data-r="${r}" data-v="${v}" aria-pressed="${c.sore[r] === v}">${t}</button>`).join('')}</div></div>`).join('')}
    ${S.profile.hunger ? slider('hunger', c.hunger, 'Hunger <span class="sub">optional</span>') : ''}
    <div class="toggle" style="margin-top:8px"><label for="ill"><b>Sharp joint pain or illness</b><div class="sub">Pain that changes how you move, fever, or sickness</div></label><span class="sw"><input id="ill" type="checkbox" data-ckb="ill" ${c.ill ? 'checked' : ''}><i></i></span></div>
    <button class="btn" data-act="submitCk" style="margin-top:14px">See today’s plan</button>
@@ -93,10 +94,10 @@ function planCard(p){
   const s = p.session;
   h += `<div class="row"><h3 class="sp">${esc(s.name)}</h3><span class="sub num">~${s.estMin} min</span></div>
     ${s.dose !== 'full' ? `<span class="chip ${s.dose === 'deload' ? 'yellow' : 'yellow'}" style="margin-top:6px">${s.dose === 'deload' ? 'Deload dose' : 'Trimmed dose'}</span>` : ''}<div style="margin-top:8px">`;
-  s.ex.forEach(e => { const x = E.LIB[e.exId]; h += `<div class="exl"><div class="rail ${e.ss ? 'ss' : ''}" title="${e.ss ? 'Superset ' + e.ss : ''}"></div><div class="sp">
-     ${e.feature ? '<div class="feat">Featured</div>' : ''}<div class="n">${esc(x.name)}</div>
+  let prevSS = null; s.ex.forEach(e => { const x = E.LIB[e.exId]; h += `<div class="exl${e.ss && e.ss !== prevSS ? ' ssstart' : ''}"><div class="rail ${e.ss ? 'ss' : ''}"></div><div class="sp">
+     ${e.ss && e.ss !== prevSS ? `<div class="feat">Superset ${e.ss}</div>` : ''}${e.feature ? '<div class="feat">Featured</div>' : ''}<div class="n">${esc(x.name)}</div>
      <div class="t num">${e.sets.length} × ${e.sets[0].tr} @ ${lbl(e.sets[0].tl)} · E${e.tgtE[0]}–${e.tgtE[1]}</div>
-     <div class="b">${esc(e.basis || 'First time: starting load')}</div></div></div>`; });
+     <div class="b">${esc(e.basis || 'First time: starting load')}</div></div></div>`; prevSS = e.ss; });
   if (s.finisher) h += `<div class="exl"><div class="rail ss"></div><div><div class="feat">Finisher</div><div class="n">${esc(s.finisher.name)}</div><div class="t">${s.finisher.rounds} rounds · ${s.finisher.items.join(' + ')}</div></div></div>`;
   h += `<div class="exl"><div class="rail"></div><div class="row sp">${ic('walk')}<div><div class="n">Post-workout walk</div><div class="t">${s.walk.mi} mi · ~${s.walk.min} min</div></div></div></div></div>
     <button class="btn" data-act="start" style="margin-top:12px">Start workout</button>
@@ -175,7 +176,7 @@ function logSet(btn){
   const partner = e.ss ? s.ex.find((o, j) => j !== i && o.ss === e.ss) : null;
   if (partner && partner.sets[k] && partner.sets[k].ar == null) { toast('Now: ' + E.LIB[partner.exId].name); return; }
   const lastSet = e.sets.every(n => n.ar != null);
-  startRest(lastSet ? Math.min(e.rest, 90) : e.rest, lastSet ? 'Next exercise' : 'Next: set ' + (k + 2));
+  startRest(e.rest, lastSet ? 'Next exercise' : 'Next: set ' + (k + 2));
   if (lastSet) setTimeout(() => { const ef = $('#eff' + i); if (ef) ef.scrollIntoView({behavior:'smooth', block:'center'}); }, 50);
 }
 
@@ -257,8 +258,9 @@ function exSheet(id){
 }
 
 /* ---------- SETTINGS ---------- */
-function getPath(o, p){ return p.split('.').reduce((a, k) => a == null ? a : a[k], o); }
-function setPath(o, p, v){ const ks = p.split('.'); let c = o; ks.slice(0, -1).forEach(k => { if (c[k] == null || typeof c[k] !== 'object') c[k] = {}; c = c[k]; }); c[ks[ks.length - 1]] = v; }
+const segs = p => p.split('.').map(k => k.replace(',', '.'));
+function getPath(o, p){ return segs(p).reduce((a, k) => a == null ? a : a[k], o); }
+function setPath(o, p, v){ const ks = segs(p); let c = o; ks.slice(0, -1).forEach(k => { if (c[k] == null || typeof c[k] !== 'object') c[k] = {}; c = c[k]; }); c[ks[ks.length - 1]] = v; }
 function fld(path, label, hint, type){ const src = path.startsWith('settings.') ? {settings: settings()} : S, v = getPath(src, path);
   if (type === 'bool') return `<div class="f"><label for="f-${path}">${label}${hint ? `<small>${hint}</small>` : ''}</label><span class="sw"><input id="f-${path}" type="checkbox" data-bind="${path}" data-type="bool" ${v ? 'checked' : ''}><i></i></span></div>`;
   if (Array.isArray(type)) return `<div class="f"><label for="f-${path}">${label}${hint ? `<small>${hint}</small>` : ''}</label><select id="f-${path}" data-bind="${path}">${type.map(o => `<option ${o === v ? 'selected' : ''}>${o}</option>`).join('')}</select></div>`;
@@ -272,7 +274,7 @@ function renderSettings(){
    <div style="padding:12px 0"><b>Priority muscles</b><div class="sub" style="margin-bottom:8px">Kept at the top of their ranges</div><div class="chips">${E.MUSCLES.map(m => `<button data-act="prio" data-m="${m}" aria-pressed="${p.priority.includes(m)}">${E.MUSCLE_LABEL[m]}</button>`).join('')}</div></div></div>
   <h2>Equipment</h2><div class="card"><div class="chips" style="margin-bottom:10px">${['barbell','rack','bench','dumbbell','cable','pullup','landmine','curlbar','treadmill'].map(k => `<button data-act="eq" data-k="${k}" aria-pressed="${!!eq.has[k]}">${{pullup:'pull-up bar', curlbar:'curl bar'}[k] || k}</button>`).join('')}</div>
    ${fld('equipment.bar','Barbell weight','lb')}${fld('equipment.curlbar','Curl bar weight','lb')}
-   ${['45','35','25','10','5','2.5'].map(d => fld('equipment.plates.' + d, d + ' lb plates', 'total count')).join('')}
+   ${['45','35','25','10','5','2.5'].map(d => fld('equipment.plates.' + d.replace('.', ','), d + ' lb plates', 'total count')).join('')}
    ${fld('equipment.db.min','Dumbbell min','lb')}${fld('equipment.db.max','Dumbbell max','lb')}${fld('equipment.db.step','Dumbbell step','lb')}${fld('equipment.cable.inc','Cable increment','lb per pin step')}${fld('equipment.cable.max','Cable stack max','lb')}
    <p class="disc">Every load the app programs is built from these plates and steps.</p></div>
   <h2>Program & rules</h2><div class="card">
@@ -320,7 +322,7 @@ function renderOnboarding(){
   if (st === 2) h = `${prog(2)}<h1>Goal<em>.</em></h1><div class="card">${fld('profile.phase','Phase','',['cut','maintain','gain'])}${fld('profile.target','Target weight','lb')}${fld('profile.days','Training days / week','4–5 is the sweet spot')}${fld('profile.sessionMin','Lifting minutes per session','')}</div>
     <div class="card"><b>Priority muscles</b><div class="chips" style="margin-top:10px">${E.MUSCLES.map(m => `<button data-act="prio" data-m="${m}" aria-pressed="${p.priority.includes(m)}">${E.MUSCLE_LABEL[m]}</button>`).join('')}</div></div>${nav(1)}`;
   if (st === 3) h = `${prog(3)}<h1>Your gym<em>.</em></h1><p class="sub">Starts as a typical home gym. Tap to match yours.</p><div class="card"><div class="chips">${['barbell','rack','bench','dumbbell','cable','pullup','landmine','curlbar','treadmill'].map(k => `<button data-act="eq" data-k="${k}" aria-pressed="${!!eq.has[k]}">${{pullup:'pull-up bar', curlbar:'curl bar'}[k] || k}</button>`).join('')}</div></div>
-    <div class="card">${['45','25','10','5','2.5'].map(d => fld('equipment.plates.' + d, d + ' lb plates', 'total count')).join('')}${fld('equipment.db.min','Dumbbells from','lb')}${fld('equipment.db.max','Dumbbells to','lb')}${fld('equipment.cable.inc','Cable steps','lb')}</div>${nav(1)}`;
+    <div class="card">${['45','25','10','5','2.5'].map(d => fld('equipment.plates.' + d.replace('.', ','), d + ' lb plates', 'total count')).join('')}${fld('equipment.db.min','Dumbbells from','lb')}${fld('equipment.db.max','Dumbbells to','lb')}${fld('equipment.cable.inc','Cable steps','lb')}</div>${nav(1)}`;
   if (st === 4) h = `${prog(4)}<h1>Anything to avoid<em>?</em></h1><p class="sub">Optional. Pick movements that bother you and the coach works around them.</p><div class="card"><div class="chips">${Object.keys(PATTERNS).map(t => `<button data-act="obLim" data-t="${t}" aria-pressed="${(S.limitations||[]).some(l => l.tags.includes(t))}">${PATTERNS[t]}</button>`).join('')}</div>
     <p class="disc" style="margin-top:14px">This isn't a diagnosis. If pain persists, worsens, or limits loading, get it evaluated by a professional.</p></div>${nav(1)}`;
   if (st === 5) h = `${prog(5)}<h1>Likes & nevers<em>.</em></h1><p class="sub">Tap to cycle: neutral → like → never.</p><div class="card">${OB_EX.map(id => { const s0 = S.exState[id] || {}, v = s0.ban ? 'Never' : s0.like ? 'Like' : '—';
@@ -388,6 +390,7 @@ document.addEventListener('click', ev => {
     case 'close': return closeSheet();
     case 'info': return sheet(`<p style="font-size:17px">${esc(INFO[b.dataset.k])}</p><button class="btn ghost" data-act="close">Got it</button>`);
     case 'ck': ui.ck[b.dataset.k] = +b.dataset.v; b.parentNode.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); return;
+    case 'sore': ui.ck.sore[b.dataset.r] = +b.dataset.v; b.parentNode.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); return;
     case 'submitCk': return submitCheckin();
     case 'skipCk': S.today = {date: today(), skipCk: true}; save(); return render();
     case 'redoCk': closeSheet(); S.checkins = S.checkins.filter(c => c.date !== today()); S.today = {}; save(); return render();
@@ -402,14 +405,16 @@ document.addEventListener('click', ev => {
     case 'expand': ui.open[i] = true; return rerenderCard(i);
     case 'cue': ui.open['c' + i] = !ui.open['c' + i]; return rerenderCard(i);
     case 'addSet': { const e = s.ex[i], l = e.sets[e.sets.length - 1]; e.sets.push({tr: l.tr, tl: l.al ?? l.tl, ar: null, al: null}); save(); return rerenderCard(i); }
-    case 'hurt': { const e = s.ex[i], out = E.flagPain(S, e.exId, now()); e.pain = true; save(); rerenderCard(i);
+    case 'hurt': { const e = s.ex[i]; if (e.pain){ const k = S.painFlags.map(p => p.exId + p.ts).lastIndexOf(e.exId + e.painTs); if (k >= 0) S.painFlags.splice(k, 1); e.pain = false; save(); rerenderCard(i); return toast('Pain flag removed.'); }
+      const out = E.flagPain(S, e.exId, now()); e.painTs = S.painFlags[S.painFlags.length - 1].ts; e.pain = true; save(); rerenderCard(i);
       return toast(out.patternBanned ? 'Third flag on this movement type. It’s paused. Review it in Settings.' : out.swapped ? 'Second flag. This lift gets swapped from now on.' : 'Noted. If it hurts again, it gets swapped.'); }
-    case 'swap': return swapSheet(i);
+    case 'swap': if (s.ex[i].sets.some(z => z.ar != null)) return toast('Sets are already logged here. Undo them to swap.'); return swapSheet(i);
     case 'doSwap': { const e = s.ex[i], id = b.dataset.id, x = E.LIB[id], p = E.prescribe(S, id, now(), S.equipment);
       Object.assign(e, {exId: id, kind: x.kind, impl: x.impl, rr: x.rr, tgtE: x.kind === 'c' ? [7,8] : [8,9], basis: p.basis, why: p.why, warm: [], effort: null, pain: false, sets: e.sets.map(() => ({tr: p.reps, tl: p.load, ar: null, al: null}))});
       save(); closeSheet(); return rerenderCard(i); }
     case 'fin': s.finisher.done = !s.finisher.done; save(); return render();
-    case 'complete': { const n = logged(s); if (!n) return sheet(`<h3>Nothing logged yet</h3><p class="sub">If you did the workout, mark it done as reported. Unlogged sets count at target.</p><button class="btn" data-act="reportGo">Mark done as reported</button><button class="btn ghost" data-act="close" style="margin-top:8px">Keep training</button>`); return completeSession(false); }
+    case 'complete': { const n = logged(s); if (!n) return sheet(`<h3>Nothing logged yet</h3><p class="sub">If you did the workout, mark it done as reported. Unlogged sets count at target.</p><button class="btn" data-act="reportGo">Mark done as reported</button><button class="btn ghost" data-act="close" style="margin-top:8px">Keep training</button>`); const left = s.ex.reduce((x, e) => x + e.sets.filter(z => z.ar == null).length, 0); if (left) return sheet(`<h3>${left} set${left > 1 ? 's' : ''} not logged</h3><p class="sub">Did you do them?</p><button class="btn" data-act="reportGo">I did them, count at target</button><button class="btn ghost" data-act="completeGo" style="margin-top:8px">I skipped them</button><button class="btn ghost" data-act="close" style="margin-top:8px">Keep training</button>`); return completeSession(false); }
+    case 'completeGo': closeSheet(); return completeSession(false);
     case 'report': return sheet(`<h3>Mark done as reported?</h3><p class="sub">Your word beats the log. Sets you didn't log count as done at their targets, and the next plan builds from that.</p><button class="btn" data-act="reportGo">Yes, I did it</button><button class="btn ghost" data-act="close" style="margin-top:8px">Cancel</button>`);
     case 'reportGo': closeSheet(); return completeSession(true);
     case 'reportId': { const x = S.sessions.find(z => z.id === b.dataset.id); if (!x) return; E.markReported(x); save(); toast('Marked done as reported.'); return render(); }
@@ -451,9 +456,11 @@ document.addEventListener('input', ev => {
 document.addEventListener('change', ev => {
   const t = ev.target;
   if (t.dataset.ckb) ui.ck[t.dataset.ckb] = t.checked;
+  if (t.dataset.f){ const row = t.closest('.set'), btn = row && row.querySelector('.ck'), s = active(); if (s && btn && row.classList.contains('logged')){ const e = s.ex[+btn.dataset.e], z = (btn.dataset.w === '1' ? e.warm : e.sets)[+btn.dataset.s]; const v = t.value === '' ? null : +t.value;
+    if (t.dataset.f === 'r') z.ar = v ?? z.tr; else z.al = v ?? z.tl; save(); toast('Set updated'); } }
   if (t.dataset.bind){ const path = t.dataset.bind, typ = t.dataset.type; let v = typ === 'bool' ? t.checked : (t.tagName === 'SELECT' || typ === 'text') ? t.value : (t.value === '' ? null : +t.value);
     if (typ === 'num' && v != null && !isFinite(v)) return toast('Enter a number.');
-    if (path.startsWith('settings.')) setPath(S, path, v); else setPath(S, path, v); save(); toast('Saved'); }
+    if (path.startsWith('settings.')) setPath(S, path, v); else setPath(S, path, v); save(); if (S.meta.onboarded) toast('Saved'); }
   if (t.id === 'imp' && t.files[0]){ t.files[0].text().then(txt => { try { S = E.importJSON(txt); S.today = S.today || {}; save(); toast('Imported. History restored.'); render(); } catch(e){ toast('That file isn’t an Iron & Fuel export.'); } }); }
 });
 

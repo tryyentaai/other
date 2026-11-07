@@ -339,14 +339,14 @@ function build(state, tpl, dose, now){
     if (!isPrio && wf[x.prim] + sessFrac[x.prim] + sets > ranges[x.prim][1]) sets = Math.max(2, ranges[x.prim][1] - Math.ceil(wf[x.prim] + sessFrac[x.prim]));
     while (sets > 1 && sessFrac[x.prim] + sets > S.sessionCapFrac) sets--;
     let tgtE = x.kind === 'c' ? [7,8] : [8,9];
-    const p = prescribe(state, pick, now, eq); let load = p.load, why = p.why;
-    if (dose === 'yellow'){ sets = Math.max(slot.main ? 2 : 1, Math.round(sets * S.yellow.volPct / 100)); if (load) load = roundLoad(load * (1 + S.yellow.loadPct/100), x.impl, eq, -1, load); tgtE = tgtE.map(v => v - 1); why = 'Yellow day: −5% load, fewer sets.'; }
+    const p = prescribe(state, pick, now, eq); let load = p.load, why = p.why, repCut = 0;
+    if (dose === 'yellow'){ sets = Math.max(slot.main ? 2 : 1, Math.round(sets * S.yellow.volPct / 100)); if (load){ const dn = roundLoad(load * (1 + S.yellow.loadPct/100), x.impl, eq, -1, load); if ((load - dn) / load <= 0.075) load = dn; else { repCut = 2; } } tgtE = tgtE.map(v => v - 1); why = repCut ? 'Yellow day: same load (the next step down is too big), 2 fewer reps, fewer sets.' : 'Yellow day: −5% load, fewer sets.'; }
     if (dose === 'deload'){ sets = Math.max(1, Math.round(sets * S.deloadDose.volPct / 100)); if (load) load = roundLoad(load * S.deloadDose.loadPct / 100, x.impl, eq, -1, load); tgtE = [5, S.deloadDose.effortMax]; why = 'Deload: lighter, crisp reps.'; }
     sessFrac[x.prim] += sets; x.syn.forEach(m => sessFrac[m] += 0.5*sets);
     const warm = (x.kind === 'c' && barbellRamped < 2 && (x.impl === 'barbell' || (slot.main && x.impl === 'landmine'))) ? ramps(load, x.impl, eq, barbellRamped++ === 0) : [];
     const shoulder = x.tags.includes('shoulder') && (state.limitations||[]).some(l => /shoulder/i.test(l.area||''));
     ex.push({exId:pick, slot:si, main:!!slot.main, feature:!!(slot.feature || fav === pick), ss: S.supersets ? (slot.ss||null) : null, kind:x.kind, impl:x.impl, rr:x.rr, tgtE,
-      warm: warm.map(w => ({tr:w.reps, tl:w.load, ar:null, al:null})), sets: Array.from({length: sets}, () => ({tr:p.reps, tl:load, ar:null, al:null})),
+      warm: warm.map(w => ({tr:w.reps, tl:w.load, ar:null, al:null})), sets: Array.from({length: sets}, () => ({tr:Math.max(1, p.reps - repCut), tl:load, ar:null, al:null})),
       effort:null, basis:p.basis, why, pinch: shoulder,
       rest: slot.ss ? S.rest.pair : (slot.main ? S.rest.main : (x.kind === 'c' ? S.rest.comp : S.rest.iso))});
   });
@@ -444,7 +444,7 @@ function newState(nowIso){
   return {v:1, protocolVersion:PROTOCOL, meta:{created:nowIso, onboarded:false},
     profile:{name:'', units:'lb', exp:'intermediate', phase:'cut', weight:null, target:null, days:5, sessionMin:60, priority:['biceps','triceps','abs'], hunger:true, cardio:'walk', walkMi:1.5, walkMin:28, trainWeekday:'05:00', trainWeekend:'07:00', clockShift:null, cutWeek:1},
     equipment:{has:{barbell:true, rack:true, bench:true, dumbbell:true, cable:true, pullup:true, landmine:false, curlbar:true, treadmill:true}, plates:{45:2, 25:2, 10:2, 5:2, 2.5:2}, bar:45, curlbar:25, db:{min:5, max:50, step:5}, cable:{inc:10, max:200}},
-    settings:{}, exState:{lmhack:{ban:true}, bridge:{ban:true}, superman:{ban:true}}, limitations:[], painFlags:[], sessions:[], checkins:[], weights:[], deload:null};
+    settings:{}, exState:{}, limitations:[], painFlags:[], sessions:[], checkins:[], weights:[], deload:null};
 }
 function demoState(now){
   const st = newState(new Date(now - 15*D).toISOString());
