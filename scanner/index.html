@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0e13">
+<title>Pocket Scan — Document Scanner</title>
+<style>
+  :root{
+    --bg:#0b0e13; --panel:#151a22; --panel2:#1c232e; --line:#2a3342;
+    --text:#eef2f7; --muted:#93a1b3; --accent:#4da3ff; --accent2:#22c07a;
+    --danger:#ff5d5d; --radius:14px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  header{position:sticky;top:0;z-index:20;background:rgba(11,14,19,.92);backdrop-filter:blur(8px);
+    padding:14px 16px 10px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
+  header h1{font-size:19px;margin:0;font-weight:700;letter-spacing:.2px}
+  header .sub{color:var(--muted);font-size:12px;margin-left:auto;text-align:right}
+  main{padding:16px 16px 120px;max-width:640px;margin:0 auto}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px;margin-bottom:14px}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--line);
+    background:var(--panel2);color:var(--text);border-radius:12px;padding:13px 16px;font-size:15px;font-weight:600;
+    cursor:pointer;user-select:none;text-align:center}
+  .btn:active{transform:scale(.98)}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  .btn.good{background:var(--accent2);border-color:var(--accent2);color:#fff}
+  .btn.danger{background:transparent;border-color:var(--danger);color:var(--danger)}
+  .btn.block{display:flex;width:100%}
+  .btn.small{padding:9px 12px;font-size:13px;border-radius:10px}
+  .row{display:flex;gap:10px;flex-wrap:wrap}
+  .row .btn{flex:1}
+  .hint{color:var(--muted);font-size:13px;line-height:1.45}
+  #emptyState{padding:26px 10px;text-align:center}
+  #emptyState .big{font-size:40px;margin-bottom:8px}
+  .pages{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:10px}
+  .thumb{position:relative;border-radius:12px;overflow:hidden;border:2px solid var(--line);cursor:pointer;background:#000}
+  .thumb.sel{border-color:var(--accent)}
+  .thumb img{width:100%;height:118px;object-fit:cover;display:block}
+  .thumb .n{position:absolute;left:6px;bottom:6px;background:rgba(0,0,0,.65);color:#fff;font-size:11px;
+    padding:2px 7px;border-radius:20px}
+  .thumb .del{position:absolute;top:5px;right:5px;width:26px;height:26px;border-radius:50%;border:none;
+    background:rgba(0,0,0,.65);color:#fff;font-size:15px;line-height:1;cursor:pointer}
+  /* editor */
+  #editor{display:none}
+  #stageWrap{position:relative;width:100%;background:#000;border-radius:12px;overflow:hidden;touch-action:none}
+  #stageImg{display:block;width:100%;height:auto;user-select:none;-webkit-user-drag:none}
+  .handle{position:absolute;width:34px;height:34px;margin:-17px 0 0 -17px;border-radius:50%;
+    border:3px solid var(--accent);background:rgba(77,163,255,.25);z-index:5;touch-action:none;cursor:grab}
+  .handle::after{content:"";position:absolute;inset:11px;border-radius:50%;background:var(--accent)}
+  #quadSvg{position:absolute;inset:0;width:100%;height:100%;z-index:4;pointer-events:none}
+  .chips{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+  .chip{border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:9px 13px;border-radius:20px;
+    font-size:13px;font-weight:600;cursor:pointer}
+  .chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  #previewWrap{display:none;margin-top:12px}
+  #previewImg{width:100%;border-radius:12px;border:1px solid var(--line);display:block}
+  footer{position:fixed;left:0;right:0;bottom:0;z-index:20;background:rgba(11,14,19,.95);backdrop-filter:blur(8px);
+    border-top:1px solid var(--line);padding:10px 16px calc(10px + env(safe-area-inset-bottom))}
+  footer .row{max-width:640px;margin:0 auto}
+  #toast{position:fixed;left:50%;bottom:110px;transform:translateX(-50%) translateY(20px);background:#222b38;color:#fff;
+    border:1px solid var(--line);padding:10px 16px;border-radius:24px;font-size:14px;opacity:0;pointer-events:none;
+    transition:all .25s;z-index:50;max-width:88vw;text-align:center}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  #busy{position:fixed;inset:0;background:rgba(5,7,10,.72);display:none;align-items:center;justify-content:center;z-index:60;
+    color:#fff;font-size:16px;font-weight:600}
+  input[type=file]{display:none}
+</style>
+</head>
+<body>
+<header>
+  <h1>📄 Pocket Scan</h1>
+  <div class="sub">Scan-quality pages<br>from your phone camera</div>
+</header>
+
+<main>
+  <div class="card">
+    <div class="row">
+      <label class="btn primary" for="camInput">📷 Scan a page</label>
+      <label class="btn" for="libInput">🖼 From photos</label>
+    </div>
+    <p class="hint" style="margin:10px 2px 0">Fill the frame with the page, keep the light even, then drag the four corners onto the page edges. Everything is processed on your phone — nothing is uploaded anywhere.</p>
+  </div>
+
+  <div class="card" id="pagesCard">
+    <div id="emptyState">
+      <div class="big">🗂️</div>
+      <div class="hint">No pages yet. Scan your first page to get started.<br>Pages are combined into one PDF when you send them.</div>
+    </div>
+    <div class="pages" id="pagesGrid"></div>
+  </div>
+
+  <div class="card" id="editor">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+      <strong id="editorTitle">Page 1</strong>
+      <span class="hint">— drag the corners</span>
+      <button class="btn small" id="resetCorners" style="margin-left:auto">Reset corners</button>
+    </div>
+    <div id="stageWrap">
+      <img id="stageImg" alt="Captured page">
+      <svg id="quadSvg" preserveAspectRatio="none"><polygon id="quadPoly" fill="rgba(77,163,255,.14)" stroke="#4da3ff" stroke-width="2"/></svg>
+    </div>
+    <div class="chips" id="modeChips">
+      <button class="chip" data-mode="color">✨ Color scan</button>
+      <button class="chip" data-mode="bw">🖨 B&amp;W</button>
+      <button class="chip" data-mode="gray">◐ Grayscale</button>
+      <button class="chip" data-mode="original">Original</button>
+    </div>
+    <div class="row">
+      <button class="btn primary" id="applyBtn">Apply &amp; preview</button>
+      <button class="btn" id="closeEditor">Done</button>
+    </div>
+    <div id="previewWrap">
+      <p class="hint" style="margin:10px 2px 6px">Result — this is exactly what gets sent:</p>
+      <img id="previewImg" alt="Processed scan">
+    </div>
+  </div>
+</main>
+
+<footer id="exportBar" style="display:none">
+  <div class="row">
+    <button class="btn good" id="sharePdfBtn">📤 Send PDF</button>
+    <button class="btn" id="savePdfBtn">Save PDF</button>
+    <button class="btn" id="shareImgBtn">Send page image</button>
+  </div>
+</footer>
+
+<div id="toast"></div>
+<div id="busy">Working…</div>
+
+<input type="file" id="camInput" accept="image/*" capture="environment">
+<input type="file" id="libInput" accept="image/*" multiple>
+
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+const pages = [];           // {src: canvas, corners:[{x,y} x4 rel 0..1], mode, out: canvas|null, thumb: string}
+let editIdx = -1;
+
+function toast(msg, ms=2400){
+  const t = $("#toast"); t.textContent = msg; t.classList.add("show");
+  clearTimeout(t._h); t._h = setTimeout(()=>t.classList.remove("show"), ms);
+}
+function busy(on){ $("#busy").style.display = on ? "flex" : "none"; }
+
+/* ---------- image loading ---------- */
+function fileToCanvas(file){
+  return new Promise((resolve, reject)=>{
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = ()=>{
+      const MAX = 2400;
+      let w = img.naturalWidth, h = img.naturalHeight;
+      const k = Math.min(1, MAX / Math.max(w, h));
+      w = Math.round(w*k); h = Math.round(h*k);
+      const c = document.createElement("canvas"); c.width = w; c.height = h;
+      c.getContext("2d").drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      resolve(c);
+    };
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+async function addFiles(fileList){
+  const files = [...fileList].filter(f=>f.type.startsWith("image/"));
+  if(!files.length) return;
+  busy(true);
+  try{
+    for(const f of files){
+      const src = await fileToCanvas(f);
+      const m = 0.06;
+      pages.push({ src, mode:"color", out:null,
+        corners:[{x:m,y:m},{x:1-m,y:m},{x:1-m,y:1-m},{x:m,y:1-m}] });
+    }
+    renderPages();
+    openEditor(pages.length - files.length);
+    toast(files.length > 1 ? files.length + " pages added" : "Page added — drag the corners to the page edges");
+  }catch(e){ toast("Could not read that image"); }
+  busy(false);
+}
+$("#camInput").addEventListener("change", e=>{ addFiles(e.target.files); e.target.value=""; });
+$("#libInput").addEventListener("change", e=>{ addFiles(e.target.files); e.target.value=""; });
+
+/* ---------- page grid ---------- */
+function renderPages(){
+  const grid = $("#pagesGrid");
+  grid.innerHTML = "";
+  $("#emptyState").style.display = pages.length ? "none" : "block";
+  $("#exportBar").style.display = pages.length ? "block" : "none";
+  pages.forEach((p, i)=>{
+    const d = document.createElement("div");
+    d.className = "thumb" + (i===editIdx ? " sel" : "");
+    const img = document.createElement("img");
+    img.src = (p.out || p.src).toDataURL("image/jpeg", 0.6);
+    img.alt = "Page " + (i+1);
+    const n = document.createElement("span"); n.className = "n"; n.textContent = "Page " + (i+1);
+    const del = document.createElement("button"); del.className = "del"; del.textContent = "×";
+    del.title = "Remove page";
+    del.addEventListener("click", ev=>{
+      ev.stopPropagation();
+      pages.splice(i,1);
+      if(editIdx === i) closeEditorFn();
+      else if(editIdx > i) editIdx--;
+      renderPages();
+    });
+    d.append(img, n, del);
+    d.addEventListener("click", ()=> openEditor(i));
+    grid.appendChild(d);
+  });
+}
+
+/* ---------- corner editor ---------- */
+const stageWrap = $("#stageWrap"), stageImg = $("#stageImg"), quadPoly = $("#quadPoly");
+let handles = [];
+function openEditor(i){
+  if(i < 0 || i >= pages.length) return;
+  editIdx = i;
+  const p = pages[i];
+  $("#editorTitle").textContent = "Page " + (i+1);
+  stageImg.src = p.src.toDataURL("image/jpeg", 0.85);
+  $("#editor").style.display = "block";
+  $("#previewWrap").style.display = p.out ? "block" : "none";
+  if(p.out) $("#previewImg").src = p.out.toDataURL("image/jpeg", 0.85);
+  document.querySelectorAll("#modeChips .chip").forEach(ch =>
+    ch.classList.toggle("on", ch.dataset.mode === p.mode));
+  buildHandles();
+  $("#editor").scrollIntoView({behavior:"smooth", block:"start"});
+  renderPages();
+}
+function closeEditorFn(){
+  editIdx = -1;
+  $("#editor").style.display = "none";
+  handles.forEach(h=>h.remove()); handles = [];
+  renderPages();
+}
+$("#closeEditor").addEventListener("click", closeEditorFn);
+$("#resetCorners").addEventListener("click", ()=>{
+  if(editIdx < 0) return;
+  const m = 0.06, p = pages[editIdx];
+  p.corners = [{x:m,y:m},{x:1-m,y:m},{x:1-m,y:1-m},{x:m,y:1-m}];
+  positionHandles(); drawQuad();
+});
+function buildHandles(){
+  handles.forEach(h=>h.remove()); handles = [];
+  const p = pages[editIdx];
+  p.corners.forEach((c, ci)=>{
+    const h = document.createElement("div");
+    h.className = "handle";
+    stageWrap.appendChild(h);
+    handles.push(h);
+    h.addEventListener("pointerdown", ev=>{
+      ev.preventDefault();
+      h.setPointerCapture(ev.pointerId);
+      const move = e=>{
+        const r = stageWrap.getBoundingClientRect();
+        c.x = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+        c.y = Math.min(1, Math.max(0, (e.clientY - r.top) / r.height));
+        positionHandles(); drawQuad();
+      };
+      const up = ()=>{
+        h.removeEventListener("pointermove", move);
+        h.removeEventListener("pointerup", up);
+        h.removeEventListener("pointercancel", up);
+        pages[editIdx].out = null;   // corners changed: stale result
+        $("#previewWrap").style.display = "none";
+      };
+      h.addEventListener("pointermove", move);
+      h.addEventListener("pointerup", up);
+      h.addEventListener("pointercancel", up);
+    });
+  });
+  requestAnimationFrame(()=>{ positionHandles(); drawQuad(); });
+}
+function positionHandles(){
+  if(editIdx < 0) return;
+  const p = pages[editIdx];
+  handles.forEach((h, i)=>{
+    h.style.left = (p.corners[i].x * 100) + "%";
+    h.style.top  = (p.corners[i].y * 100) + "%";
+  });
+}
+function drawQuad(){
+  if(editIdx < 0) return;
+  const p = pages[editIdx], r = stageWrap.getBoundingClientRect();
+  const svg = $("#quadSvg");
+  svg.setAttribute("viewBox", "0 0 " + r.width + " " + r.height);
+  quadPoly.setAttribute("points", p.corners.map(c =>
+    (c.x*r.width).toFixed(1) + "," + (c.y*r.height).toFixed(1)).join(" "));
+}
+window.addEventListener("resize", ()=>{ positionHandles(); drawQuad(); });
+document.querySelectorAll("#modeChips .chip").forEach(ch=>{
+  ch.addEventListener("click", ()=>{
+    if(editIdx < 0) return;
+    pages[editIdx].mode = ch.dataset.mode;
+    pages[editIdx].out = null;
+    document.querySelectorAll("#modeChips .chip").forEach(c =>
+      c.classList.toggle("on", c === ch));
+    $("#previewWrap").style.display = "none";
+  });
+});
+
+/* ---------- perspective warp ---------- */
+function homography(src, dst){
+  // returns 3x3 (as 9-array) mapping src points -> dst points
+  const A = [], b = [];
+  for(let i=0;i<4;i++){
+    const {x,y} = src[i], {x:X, y:Y} = dst[i];
+    A.push([x,y,1,0,0,0,-X*x,-X*y]); b.push(X);
+    A.push([0,0,0,x,y,1,-Y*x,-Y*y]); b.push(Y);
+  }
+  // gaussian elimination 8x8
+  const n = 8;
+  for(let col=0, row=0; col<n && row<n; col++, row++){
+    let piv = row;
+    for(let r=row;r<n;r++) if(Math.abs(A[r][col]) > Math.abs(A[piv][col])) piv = r;
+    [A[row],A[piv]] = [A[piv],A[row]]; [b[row],b[piv]] = [b[piv],b[row]];
+    const d = A[row][col] || 1e-12;
+    for(let r=0;r<n;r++){
+      if(r===row) continue;
+      const f = A[r][col]/d;
+      for(let c=col;c<n;c++) A[r][c] -= f*A[row][c];
+      b[r] -= f*b[row];
+    }
+  }
+  const h = [];
+  for(let i=0;i<n;i++) h.push(b[i]/A[i][i]);
+  return [h[0],h[1],h[2],h[3],h[4],h[5],h[6],h[7],1];
+}
+function applyH(H, x, y){
+  const w = H[6]*x + H[7]*y + H[8];
+  return { x:(H[0]*x + H[1]*y + H[2])/w, y:(H[3]*x + H[4]*y + H[5])/w };
+}
+function dist(a,b){ return Math.hypot(a.x-b.x, a.y-b.y); }
+function warp(srcCanvas, cornersRel){
+  const W = srcCanvas.width, Hh = srcCanvas.height;
+  const src = cornersRel.map(c=>({x:c.x*W, y:c.y*Hh}));
+  const outW = Math.round(Math.max(dist(src[0],src[1]), dist(src[3],src[2])));
+  const outH = Math.round(Math.max(dist(src[0],src[3]), dist(src[1],src[2])));
+  const dst = [{x:0,y:0},{x:outW,y:0},{x:outW,y:outH},{x:0,y:outH}];
+  const Hm = homography(dst, src); // output px -> source px
+  const out = document.createElement("canvas"); out.width = outW; out.height = outH;
+  const octx = out.getContext("2d");
+  const sctx = srcCanvas.getContext("2d");
+  const sdata = sctx.getImageData(0,0,W,Hh);
+  const odata = octx.createImageData(outW, outH);
+  const sd = sdata.data, od = odata.data;
+  for(let y=0;y<outH;y++){
+    for(let x=0;x<outW;x++){
+      const s = applyH(Hm, x, y);
+      const sx = Math.round(s.x), sy = Math.round(s.y);
+      const oi = (y*outW + x)*4;
+      if(sx>=0 && sx<W && sy>=0 && sy<Hh){
+        const si = (sy*W + sx)*4;
+        od[oi]=sd[si]; od[oi+1]=sd[si+1]; od[oi+2]=sd[si+2]; od[oi+3]=255;
+      } else { od[oi]=od[oi+1]=od[oi+2]=255; od[oi+3]=255; }
+    }
+  }
+  octx.putImageData(odata, 0, 0);
+  return out;
+}
+
+/* ---------- scan enhancement ---------- */
+function bgEstimate(canvas){
+  const w = 48, h = Math.max(1, Math.round(48 * canvas.height / canvas.width));
+  const c = document.createElement("canvas"); c.width = w; c.height = h;
+  const ctx = c.getContext("2d");
+  ctx.drawImage(canvas, 0, 0, w, h);
+  // a few box-blur passes on the tiny copy = cheap background estimate
+  for(let pass=0; pass<3; pass++){
+    const d = ctx.getImageData(0,0,w,h), s = new Uint8ClampedArray(d.data);
+    for(let y=0;y<h;y++) for(let x=0;x<w;x++){
+      let r=0,g=0,b=0,n=0;
+      for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++){
+        const xx=x+dx, yy=y+dy;
+        if(xx<0||yy<0||xx>=w||yy>=h) continue;
+        const i=(yy*w+xx)*4; r+=s[i]; g+=s[i+1]; b+=s[i+2]; n++;
+      }
+      const i=(y*w+x)*4; d.data[i]=r/n; d.data[i+1]=g/n; d.data[i+2]=b/n;
+    }
+    ctx.putImageData(d,0,0);
+  }
+  const full = document.createElement("canvas");
+  full.width = canvas.width; full.height = canvas.height;
+  const fctx = full.getContext("2d");
+  fctx.imageSmoothingEnabled = true;
+  fctx.drawImage(c, 0, 0, full.width, full.height);
+  return full;
+}
+function enhance(canvas, mode){
+  if(mode === "original") return canvas;
+  const bg = bgEstimate(canvas);
+  const w = canvas.width, h = canvas.height;
+  const sctx = canvas.getContext("2d");
+  const sd = sctx.getImageData(0,0,w,h);
+  const bd = bg.getContext("2d").getImageData(0,0,w,h);
+  const s = sd.data, b = bd.data;
+  const out = sctx.createImageData(w,h), o = out.data;
+  for(let i=0;i<s.length;i+=4){
+    if(mode === "color"){
+      for(let ch=0; ch<3; ch++){
+        let v = s[i+ch] / Math.max(1, b[i+ch]) * 255;   // flatten lighting
+        v = (v - 128) * 1.07 + 132;                     // gentle contrast + lift
+        o[i+ch] = v < 0 ? 0 : v > 255 ? 255 : v;
+      }
+      o[i+3] = 255;
+    } else {
+      const lum  = 0.299*s[i] + 0.587*s[i+1] + 0.114*s[i+2];
+      const blum = Math.max(1, 0.299*b[i] + 0.587*b[i+1] + 0.114*b[i+2]);
+      let g = lum / blum * 255;
+      if(mode === "bw"){
+        g = (g - 70) * (255/140);                       // ramp: shadows->black, paper->white
+        g = g < 0 ? 0 : g > 255 ? 255 : g;
+      } else {
+        g = (g - 128) * 1.05 + 130;
+        g = g < 0 ? 0 : g > 255 ? 255 : g;
+      }
+      o[i] = o[i+1] = o[i+2] = g; o[i+3] = 255;
+    }
+  }
+  const c = document.createElement("canvas"); c.width = w; c.height = h;
+  c.getContext("2d").putImageData(out, 0, 0);
+  return c;
+}
+function processPage(p){
+  if(!p.out) p.out = enhance(warp(p.src, p.corners), p.mode);
+  return p.out;
+}
+$("#applyBtn").addEventListener("click", async ()=>{
+  if(editIdx < 0) return;
+  busy(true);
+  await new Promise(r=>setTimeout(r, 30));   // let the busy veil paint
+  const p = pages[editIdx];
+  p.out = null;
+  processPage(p);
+  $("#previewImg").src = p.out.toDataURL("image/jpeg", 0.85);
+  $("#previewWrap").style.display = "block";
+  busy(false);
+  renderPages();
+  toast("Scan ready — check the preview, then send it below");
+});
+
+/* ---------- export: JPEG + hand-rolled PDF ---------- */
+function canvasJpegBlob(canvas, q=0.92){
+  return new Promise(res=> canvas.toBlob(res, "image/jpeg", q));
+}
+function download(blob, name){
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
+}
+async function shareFile(blob, name, type){
+  const file = new File([blob], name, {type});
+  if(navigator.canShare && navigator.canShare({files:[file]})){
+    try{ await navigator.share({files:[file]}); return true; }
+    catch(e){ if(e && e.name === "AbortError") return true; }
+  }
+  return false;
+}
+async function buildPdf(){
+  const DPI = 200;
+  const parts = []; let len = 0;
+  const enc = new TextEncoder();
+  const push = data=>{
+    const u = typeof data === "string" ? enc.encode(data) : new Uint8Array(data);
+    parts.push(u); len += u.length; return len - u.length;
+  };
+  const offsets = [];
+  push("%PDF-1.4\n");
+  const n = pages.length;
+  const pageIds = pages.map((_,i)=> 3 + i*3);
+  // 1: catalog, 2: pages tree, then per page: page obj, content obj, image obj
+  offsets[1] = push("1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n");
+  offsets[2] = push("2 0 obj\n<< /Type /Pages /Count " + n + " /Kids [" +
+    pageIds.map(id=>id + " 0 R").join(" ") + "] >>\nendobj\n");
+  for(let i=0;i<n;i++){
+    const out = processPage(pages[i]);
+    const blob = await canvasJpegBlob(out, 0.9);
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    const wPt = Math.round(out.width * 72 / DPI), hPt = Math.round(out.height * 72 / DPI);
+    const pageId = pageIds[i], contentId = pageId+1, imgId = pageId+2;
+    offsets[pageId] = push(pageId + " 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 " +
+      wPt + " " + hPt + "] /Resources << /XObject << /Im0 " + imgId + " 0 R >> >> /Contents " +
+      contentId + " 0 R >>\nendobj\n");
+    const stream = "q " + wPt + " 0 0 " + hPt + " 0 0 cm /Im0 Do Q";
+    offsets[contentId] = push(contentId + " 0 obj\n<< /Length " + stream.length +
+      " >>\nstream\n" + stream + "\nendstream\nendobj\n");
+    offsets[imgId] = push(imgId + " 0 obj\n<< /Type /XObject /Subtype /Image /Width " +
+      out.width + " /Height " + out.height +
+      " /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length " +
+      bytes.length + " >>\nstream\n");
+    push(bytes);
+    push("\nendstream\nendobj\n");
+  }
+  const total = 3 + n*3;
+  const xrefPos = len;
+  let xref = "xref\n0 " + total + "\n0000000000 65535 f \n";
+  for(let i=1;i<total;i++){
+    xref += String(offsets[i]).padStart(10,"0") + " 00000 n \n";
+  }
+  push(xref + "trailer\n<< /Size " + total + " /Root 1 0 R >>\nstartxref\n" + xrefPos + "\n%%EOF");
+  return new Blob(parts, {type:"application/pdf"});
+}
+function stamp(){
+  const d = new Date();
+  const p2 = v=>String(v).padStart(2,"0");
+  return d.getFullYear() + p2(d.getMonth()+1) + p2(d.getDate()) + "-" + p2(d.getHours()) + p2(d.getMinutes());
+}
+async function ensureProcessed(){
+  busy(true);
+  await new Promise(r=>setTimeout(r, 30));
+  pages.forEach(processPage);
+  busy(false);
+  renderPages();
+}
+$("#sharePdfBtn").addEventListener("click", async ()=>{
+  if(!pages.length) return;
+  await ensureProcessed();
+  const pdf = await buildPdf();
+  const name = "scan-" + stamp() + ".pdf";
+  if(!await shareFile(pdf, name, "application/pdf")){ download(pdf, name); toast("Sharing not available here — PDF saved instead"); }
+});
+$("#savePdfBtn").addEventListener("click", async ()=>{
+  if(!pages.length) return;
+  await ensureProcessed();
+  download(await buildPdf(), "scan-" + stamp() + ".pdf");
+  toast("PDF saved");
+});
+$("#shareImgBtn").addEventListener("click", async ()=>{
+  if(!pages.length) return;
+  await ensureProcessed();
+  const idx = editIdx >= 0 ? editIdx : 0;
+  const blob = await canvasJpegBlob(processPage(pages[idx]), 0.92);
+  const name = "scan-page-" + (idx+1) + "-" + stamp() + ".jpg";
+  if(!await shareFile(blob, name, "image/jpeg")){ download(blob, name); toast("Sharing not available here — image saved instead"); }
+});
+</script>
+</body>
+</html>
