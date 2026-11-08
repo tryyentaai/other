@@ -1,3 +1,4 @@
+<!-- Pocket Scan v2 — auto-detect, auto-capture, smart look -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -18,7 +19,7 @@
     padding:14px 16px 10px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
   header h1{font-size:19px;margin:0;font-weight:700;letter-spacing:.2px}
   header .sub{color:var(--muted);font-size:12px;margin-left:auto;text-align:right}
-  main{padding:16px 16px 120px;max-width:640px;margin:0 auto}
+  main{padding:16px 16px 132px;max-width:640px;margin:0 auto}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px;margin-bottom:14px}
   .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--line);
     background:var(--panel2);color:var(--text);border-radius:12px;padding:13px 16px;font-size:15px;font-weight:600;
@@ -29,7 +30,8 @@
   .btn.danger{background:transparent;border-color:var(--danger);color:var(--danger)}
   .btn.block{display:flex;width:100%}
   .btn.small{padding:9px 12px;font-size:13px;border-radius:10px}
-  .row{display:flex;gap:10px;flex-wrap:wrap}
+  .btn.big{padding:17px 18px;font-size:17px;border-radius:14px}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
   .row .btn{flex:1}
   .hint{color:var(--muted);font-size:13px;line-height:1.45}
   #emptyState{padding:26px 10px;text-align:center}
@@ -41,7 +43,11 @@
   .thumb .n{position:absolute;left:6px;bottom:6px;background:rgba(0,0,0,.65);color:#fff;font-size:11px;
     padding:2px 7px;border-radius:20px}
   .thumb .del{position:absolute;top:5px;right:5px;width:26px;height:26px;border-radius:50%;border:none;
-    background:rgba(0,0,0,.65);color:#fff;font-size:15px;line-height:1;cursor:pointer}
+    background:rgba(0,0,0,.65);color:#fff;font-size:15px;line-height:1;cursor:pointer;z-index:3}
+  .thumb .mv{position:absolute;bottom:5px;width:28px;height:28px;border-radius:50%;border:none;
+    background:rgba(0,0,0,.65);color:#fff;font-size:14px;line-height:1;cursor:pointer;z-index:3}
+  .thumb .mv.l{right:38px}
+  .thumb .mv.r{right:5px}
   /* editor */
   #editor{display:none}
   #stageWrap{position:relative;width:100%;background:#000;border-radius:12px;overflow:hidden;touch-action:none}
@@ -50,37 +56,56 @@
     border:3px solid var(--accent);background:rgba(77,163,255,.25);z-index:5;touch-action:none;cursor:grab}
   .handle::after{content:"";position:absolute;inset:11px;border-radius:50%;background:var(--accent)}
   #quadSvg{position:absolute;inset:0;width:100%;height:100%;z-index:4;pointer-events:none}
-  .chips{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+  .chips{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 6px}
   .chip{border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:9px 13px;border-radius:20px;
     font-size:13px;font-weight:600;cursor:pointer}
   .chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  #autoLine{color:var(--muted);font-size:13px;margin:2px 2px 10px}
+  #autoLine b{color:var(--accent2);font-weight:600}
   #previewWrap{display:none;margin-top:12px}
   #previewImg{width:100%;border-radius:12px;border:1px solid var(--line);display:block}
   footer{position:fixed;left:0;right:0;bottom:0;z-index:20;background:rgba(11,14,19,.95);backdrop-filter:blur(8px);
     border-top:1px solid var(--line);padding:10px 16px calc(10px + env(safe-area-inset-bottom))}
   footer .row{max-width:640px;margin:0 auto}
-  #toast{position:fixed;left:50%;bottom:110px;transform:translateX(-50%) translateY(20px);background:#222b38;color:#fff;
+  #pageCount{color:var(--muted);font-size:13px;font-weight:600;white-space:nowrap}
+  #toast{position:fixed;left:50%;bottom:118px;transform:translateX(-50%) translateY(20px);background:#222b38;color:#fff;
     border:1px solid var(--line);padding:10px 16px;border-radius:24px;font-size:14px;opacity:0;pointer-events:none;
-    transition:all .25s;z-index:50;max-width:88vw;text-align:center}
+    transition:all .25s;z-index:80;max-width:88vw;text-align:center;display:flex;gap:12px;align-items:center}
   #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-  #busy{position:fixed;inset:0;background:rgba(5,7,10,.72);display:none;align-items:center;justify-content:center;z-index:60;
+  #toast.act{pointer-events:auto}
+  #toast button{background:none;border:none;color:var(--accent);font-size:14px;font-weight:700;cursor:pointer;padding:2px 4px}
+  #busy{position:fixed;inset:0;background:rgba(5,7,10,.72);display:none;align-items:center;justify-content:center;z-index:90;
     color:#fff;font-size:16px;font-weight:600}
   input[type=file]{display:none}
+  /* live scan viewfinder */
+  #liveView{display:none;position:fixed;inset:0;background:#000;z-index:70;flex-direction:column}
+  #liveWrap{position:relative;flex:1;overflow:hidden}
+  #liveVideo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+  #liveSvg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+  #liveStatus{position:absolute;left:0;right:0;top:0;padding:calc(12px + env(safe-area-inset-top)) 16px 12px;
+    background:linear-gradient(rgba(0,0,0,.65),transparent);color:#fff;font-size:16px;font-weight:600;text-align:center}
+  #liveBar{display:flex;align-items:center;justify-content:space-between;gap:14px;
+    padding:14px 22px calc(16px + env(safe-area-inset-bottom));background:#0b0e13}
+  #shutterBtn{width:72px;height:72px;border-radius:50%;border:5px solid #fff;background:var(--accent);
+    cursor:pointer;flex:none}
+  #shutterBtn:active{transform:scale(.94)}
+  .liveSide{width:72px;display:flex;justify-content:center}
 </style>
 </head>
 <body>
 <header>
   <h1>📄 Pocket Scan</h1>
-  <div class="sub">Scan-quality pages<br>from your phone camera</div>
+  <div class="sub">Auto-detect pages<br>Scan in one tap</div>
 </header>
 
 <main>
-  <div class="card">
-    <div class="row">
-      <label class="btn primary" for="camInput">📷 Scan a page</label>
+  <div class="card" id="scanCard">
+    <button class="btn primary big block" id="scanBtn">📷 Scan a page</button>
+    <div class="row" style="margin-top:10px">
+      <label class="btn" for="camInput">📸 Take photo</label>
       <label class="btn" for="libInput">🖼 From photos</label>
     </div>
-    <p class="hint" style="margin:10px 2px 0">Fill the frame with the page, keep the light even, then drag the four corners onto the page edges. Everything is processed on your phone — nothing is uploaded anywhere.</p>
+    <p class="hint" style="margin:10px 2px 0">Point the camera at a page — Pocket Scan finds the edges, straightens it and picks the right look automatically. Everything is processed on your phone — nothing is uploaded anywhere.</p>
   </div>
 
   <div class="card" id="pagesCard">
@@ -94,39 +119,61 @@
   <div class="card" id="editor">
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
       <strong id="editorTitle">Page 1</strong>
-      <span class="hint">— drag the corners</span>
       <button class="btn small" id="resetCorners" style="margin-left:auto">Reset corners</button>
     </div>
+    <p class="hint" id="detectHint" style="margin:0 2px 10px"></p>
     <div id="stageWrap">
       <img id="stageImg" alt="Captured page">
       <svg id="quadSvg" preserveAspectRatio="none"><polygon id="quadPoly" fill="rgba(77,163,255,.14)" stroke="#4da3ff" stroke-width="2"/></svg>
     </div>
     <div class="chips" id="modeChips">
+      <button class="chip" data-mode="auto">🤖 Auto</button>
       <button class="chip" data-mode="color">✨ Color scan</button>
       <button class="chip" data-mode="bw">🖨 B&amp;W</button>
       <button class="chip" data-mode="gray">◐ Grayscale</button>
       <button class="chip" data-mode="original">Original</button>
     </div>
-    <div class="row">
-      <button class="btn primary" id="applyBtn">Apply &amp; preview</button>
-      <button class="btn" id="closeEditor">Done</button>
-    </div>
+    <p id="autoLine"></p>
     <div id="previewWrap">
-      <p class="hint" style="margin:10px 2px 6px">Result — this is exactly what gets sent:</p>
+      <p class="hint" style="margin:4px 2px 6px">Result — this is exactly what gets sent:</p>
       <img id="previewImg" alt="Processed scan">
+    </div>
+    <button class="btn good big block" id="addPageBtn" style="margin-top:12px">Add page ✓</button>
+    <div class="row" style="margin-top:10px">
+      <button class="btn" id="closeEditor">Close editor</button>
     </div>
   </div>
 </main>
 
-<footer id="exportBar" style="display:none">
+<footer id="exportBar">
   <div class="row">
-    <button class="btn good" id="sharePdfBtn">📤 Send PDF</button>
-    <button class="btn" id="savePdfBtn">Save PDF</button>
-    <button class="btn" id="shareImgBtn">Send page image</button>
+    <span id="pageCount">0 pages</span>
+    <button class="btn primary" id="footMain">📷 Scan a page</button>
+    <button class="btn" id="savePdfBtn" style="display:none">Save PDF</button>
+    <button class="btn" id="shareImgBtn" style="display:none">Page image</button>
   </div>
 </footer>
 
-<div id="toast"></div>
+<div id="liveView">
+  <div id="liveWrap">
+    <video id="liveVideo" autoplay muted playsinline></video>
+    <svg id="liveSvg" viewBox="0 0 100 100" preserveAspectRatio="none">
+      <polygon id="livePoly" fill="rgba(34,192,122,.16)" stroke="#22c07a" stroke-width="0.7" points="" style="display:none"/>
+      <g id="liveDots" style="display:none">
+        <circle r="1.6" fill="#22c07a"/><circle r="1.6" fill="#22c07a"/>
+        <circle r="1.6" fill="#22c07a"/><circle r="1.6" fill="#22c07a"/>
+      </g>
+    </svg>
+    <div id="liveStatus">Looking for a page…</div>
+  </div>
+  <div id="liveBar">
+    <div class="liveSide"><button class="btn" id="liveClose">✕ Close</button></div>
+    <button id="shutterBtn" title="Capture now" aria-label="Capture now"></button>
+    <div class="liveSide"><span class="hint">or tap<br>the shutter</span></div>
+  </div>
+</div>
+
+<div id="toast"><span id="toastMsg"></span><button id="toastBtn" style="display:none">Undo</button></div>
 <div id="busy">Working…</div>
 
 <input type="file" id="camInput" accept="image/*" capture="environment">
@@ -135,16 +182,124 @@
 <script>
 "use strict";
 const $ = s => document.querySelector(s);
-const pages = [];           // {src: canvas, corners:[{x,y} x4 rel 0..1], mode, out: canvas|null, thumb: string}
+const pages = [];           // {src, corners:[{x,y}x4 rel], detected, mode:"auto"|look, effMode, autoWhy, out, _warp, _warpKey}
 let editIdx = -1;
+let editingNew = false;
+let sessionOverride = null; // user's manual look choice, remembered for the session
 
-function toast(msg, ms=2400){
-  const t = $("#toast"); t.textContent = msg; t.classList.add("show");
-  clearTimeout(t._h); t._h = setTimeout(()=>t.classList.remove("show"), ms);
+function toast(msg, ms, actionLabel, actionFn){
+  const t = $("#toast");
+  $("#toastMsg").textContent = msg;
+  const b = $("#toastBtn");
+  if(actionLabel && actionFn){
+    b.textContent = actionLabel; b.style.display = "inline";
+    b.onclick = ()=>{ t.classList.remove("show","act"); actionFn(); };
+    t.classList.add("act");
+    if(!ms) ms = 5000;
+  } else { b.style.display = "none"; t.classList.remove("act"); if(!ms) ms = 2400; }
+  t.classList.add("show");
+  clearTimeout(t._h); t._h = setTimeout(()=>t.classList.remove("show","act"), ms);
 }
 function busy(on){ $("#busy").style.display = on ? "flex" : "none"; }
+const tick = ()=> new Promise(r=>setTimeout(r, 30));
+function insetCorners(m){
+  m = (m === undefined) ? 0.06 : m;
+  return [{x:m,y:m},{x:1-m,y:m},{x:1-m,y:1-m},{x:m,y:1-m}];
+}
 
-/* ---------- image loading ---------- */
+/* ---------- document detection (shared: live frames + stills) ---------- */
+/* Pipeline: downscale to ~480px -> grayscale -> box blur -> try a bright-region
+   mask (page = big bright blob), else Sobel edge magnitude -> quad from the
+   four extreme boundary points (min/max of x+y, x-y). Simple on purpose.   */
+function detectQuad(src){
+  try{
+    const TW = 480;
+    const scale = Math.min(1, TW / src.width);
+    const w = Math.max(8, Math.round(src.width * scale));
+    const h = Math.max(8, Math.round(src.height * scale));
+    const c = document.createElement("canvas"); c.width = w; c.height = h;
+    const ctx = c.getContext("2d", {willReadFrequently:true});
+    ctx.drawImage(src, 0, 0, w, h);
+    const data = ctx.getImageData(0, 0, w, h).data;
+    const N = w * h;
+    const lum = new Float32Array(N);
+    let sum = 0;
+    for(let i=0;i<N;i++){
+      const v = 0.299*data[i*4] + 0.587*data[i*4+1] + 0.114*data[i*4+2];
+      lum[i] = v; sum += v;
+    }
+    const mean = sum / N;
+    let varSum = 0;
+    for(let i=0;i<N;i++){ const d = lum[i]-mean; varSum += d*d; }
+    const std = Math.sqrt(varSum / N);
+    // 3x3 box blur
+    const bl = new Float32Array(N);
+    for(let y=0;y<h;y++) for(let x=0;x<w;x++){
+      let s=0, n=0;
+      for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++){
+        const xx=x+dx, yy=y+dy;
+        if(xx<0||yy<0||xx>=w||yy>=h) continue;
+        s += lum[yy*w+xx]; n++;
+      }
+      bl[y*w+x] = s/n;
+    }
+    // candidate boundary points: bright-mask boundary, else strong Sobel edges
+    let pts = [];
+    const thr = mean + 0.45 * std;
+    let bright = 0;
+    const mask = new Uint8Array(N);
+    for(let i=0;i<N;i++){ if(bl[i] > thr){ mask[i]=1; bright++; } }
+    const frac = bright / N;
+    if(frac > 0.07 && frac < 0.97){
+      for(let y=1;y<h-1;y++) for(let x=1;x<w-1;x++){
+        const i = y*w+x;
+        if(mask[i] && (!mask[i-1] || !mask[i+1] || !mask[i-w] || !mask[i+w])) pts.push(i);
+      }
+    }
+    if(pts.length < 120){
+      pts = [];
+      let maxMag = 0;
+      const mag = new Float32Array(N);
+      for(let y=1;y<h-1;y++) for(let x=1;x<w-1;x++){
+        const i = y*w+x;
+        const gx = -bl[i-w-1] -2*bl[i-1] -bl[i+w-1] + bl[i-w+1] +2*bl[i+1] +bl[i+w+1];
+        const gy = -bl[i-w-1] -2*bl[i-w] -bl[i-w+1] + bl[i+w-1] +2*bl[i+w] +bl[i+w+1];
+        const m = Math.abs(gx) + Math.abs(gy);
+        mag[i] = m; if(m > maxMag) maxMag = m;
+      }
+      const et = Math.max(60, maxMag * 0.32);
+      for(let i=0;i<N;i+=2){ if(mag[i] > et) pts.push(i); }
+    }
+    if(pts.length < 80) return null;
+    // extremes -> TL, TR, BR, BL
+    let tl=pts[0], br=pts[0], tr=pts[0], blp=pts[0];
+    let sMin=1e18, sMax=-1e18, dMin=1e18, dMax=-1e18;
+    for(const i of pts){
+      const x = i % w, y = (i / w) | 0, s = x + y, d = x - y;
+      if(s < sMin){ sMin = s; tl = i; }
+      if(s > sMax){ sMax = s; br = i; }
+      if(d > dMax){ dMax = d; tr = i; }
+      if(d < dMin){ dMin = d; blp = i; }
+    }
+    const P = i => ({ x:(i % w)/w, y:((i / w) | 0)/h });
+    const quad = [P(tl), P(tr), P(br), P(blp)];
+    // sanity: corners distinct, quad big enough, roughly convex by area test
+    const diag = Math.hypot(1, h/w);
+    for(let a=0;a<4;a++) for(let b=a+1;b<4;b++){
+      if(Math.hypot(quad[a].x-quad[b].x, quad[a].y-quad[b].y) < 0.13 * diag) return null;
+    }
+    let area = 0;
+    for(let a=0;a<4;a++){
+      const p = quad[a], q = quad[(a+1)%4];
+      area += p.x*q.y - q.x*p.y;
+    }
+    area = Math.abs(area) / 2;
+    if(area < 0.10 || area > 0.995) return null;
+    return { corners: quad, area };
+  }catch(e){ return null; }
+}
+
+/* ---------- image loading + ingest ---------- */
 function fileToCanvas(file){
   return new Promise((resolve, reject)=>{
     const url = URL.createObjectURL(file);
@@ -163,32 +318,160 @@ function fileToCanvas(file){
     img.src = url;
   });
 }
+function makePage(src){
+  const det = detectQuad(src);
+  const p = {
+    src,
+    corners: det ? det.corners : insetCorners(),
+    detected: !!det,
+    mode: "auto", effMode: null, autoWhy: "",
+    out: null, _warp: null, _warpKey: ""
+  };
+  processPage(p);   // warp + smart look + enhance, all automatic
+  return p;
+}
+async function ingestCanvas(src, isNew){
+  busy(true); await tick();
+  try{
+    const p = makePage(src);
+    pages.push(p);
+    renderPages();
+    openEditor(pages.length - 1, isNew !== false);
+    toast(p.detected ? "Page scanned ✓" : "Page added — drag the corners onto the edges");
+  }catch(e){ toast("Could not process that page"); }
+  busy(false);
+}
 async function addFiles(fileList){
   const files = [...fileList].filter(f=>f.type.startsWith("image/"));
   if(!files.length) return;
   busy(true);
   try{
+    const firstNew = pages.length;
     for(const f of files){
       const src = await fileToCanvas(f);
-      const m = 0.06;
-      pages.push({ src, mode:"color", out:null,
-        corners:[{x:m,y:m},{x:1-m,y:m},{x:1-m,y:1-m},{x:m,y:1-m}] });
+      pages.push(makePage(src));
+      await tick();
     }
     renderPages();
-    openEditor(pages.length - files.length);
-    toast(files.length > 1 ? files.length + " pages added" : "Page added — drag the corners to the page edges");
+    openEditor(firstNew, true);
+    toast(files.length > 1 ? files.length + " pages scanned ✓" : (pages[firstNew].detected ? "Page scanned ✓" : "Page added — drag the corners onto the edges"));
   }catch(e){ toast("Could not read that image"); }
   busy(false);
 }
 $("#camInput").addEventListener("change", e=>{ addFiles(e.target.files); e.target.value=""; });
 $("#libInput").addEventListener("change", e=>{ addFiles(e.target.files); e.target.value=""; });
 
-/* ---------- page grid ---------- */
+/* ---------- live scan mode ---------- */
+const live = { stream:null, timer:null, detCanvas:null, lastQuad:null, stableSince:0, capturing:false };
+function liveStatus(t){ $("#liveStatus").textContent = t; }
+function drawLiveQuad(quad){
+  const poly = $("#livePoly"), dots = $("#liveDots");
+  if(!quad){ poly.style.display = "none"; dots.style.display = "none"; return; }
+  poly.setAttribute("points", quad.map(c => (c.x*100).toFixed(1) + "," + (c.y*100).toFixed(1)).join(" "));
+  poly.style.display = "";
+  const cs = dots.querySelectorAll("circle");
+  quad.forEach((c, i)=>{ cs[i].setAttribute("cx", c.x*100); cs[i].setAttribute("cy", c.y*100); });
+  dots.style.display = "";
+}
+function quadMove(a, b){
+  let m = 0;
+  for(let i=0;i<4;i++) m = Math.max(m, Math.hypot(a[i].x-b[i].x, a[i].y-b[i].y));
+  return m;
+}
+function openLive(){
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    $("#camInput").click();
+    return;
+  }
+  navigator.mediaDevices.getUserMedia({ video:{ facingMode:"environment" }, audio:false })
+    .then(stream=>{
+      live.stream = stream;
+      live.lastQuad = null; live.stableSince = 0; live.capturing = false;
+      const v = $("#liveVideo");
+      v.srcObject = stream;
+      $("#liveView").style.display = "flex";
+      liveStatus("Looking for a page…");
+      drawLiveQuad(null);
+      if(!live.detCanvas){ live.detCanvas = document.createElement("canvas"); live.detCanvas.width = 480; }
+      clearInterval(live.timer);
+      live.timer = setInterval(liveTick, 125);   // ~8fps analysis
+    })
+    .catch(()=>{ $("#camInput").click(); });      // silent fallback to file flow
+}
+function closeLive(){
+  clearInterval(live.timer); live.timer = null;
+  if(live.stream){ live.stream.getTracks().forEach(t=>t.stop()); live.stream = null; }
+  const v = $("#liveVideo"); v.srcObject = null;
+  $("#liveView").style.display = "none";
+}
+function liveTick(){
+  if(live.capturing || !live.stream) return;
+  const v = $("#liveVideo");
+  if(!v.videoWidth) return;
+  const dc = live.detCanvas;
+  dc.height = Math.max(8, Math.round(480 * v.videoHeight / v.videoWidth));
+  dc.getContext("2d").drawImage(v, 0, 0, dc.width, dc.height);
+  const det = detectQuad(dc);
+  const now = performance.now();
+  if(det && det.area > 0.14 && det.area < 0.97){
+    let q = det.corners;
+    if(live.lastQuad){   // light smoothing for a calm overlay
+      q = q.map((c, i)=>({ x:(c.x + live.lastQuad[i].x)/2, y:(c.y + live.lastQuad[i].y)/2 }));
+      if(quadMove(q, live.lastQuad) < 0.02){
+        if(!live.stableSince) live.stableSince = now;
+        if(now - live.stableSince >= 800){ captureLive(false); return; }
+        liveStatus("Page found — hold steady…");
+      } else {
+        live.stableSince = 0;
+        liveStatus("Page found — hold steady…");
+      }
+    } else {
+      live.stableSince = 0;
+      liveStatus("Page found — hold steady…");
+    }
+    live.lastQuad = q;
+    drawLiveQuad(q);
+  } else {
+    live.lastQuad = null; live.stableSince = 0;
+    drawLiveQuad(null);
+    liveStatus("Looking for a page…");
+  }
+}
+async function captureLive(manual){
+  if(live.capturing || !live.stream) return;
+  live.capturing = true;
+  const v = $("#liveVideo");
+  const MAX = 2400;
+  let w = v.videoWidth, h = v.videoHeight;
+  const k = Math.min(1, MAX / Math.max(w, h));
+  w = Math.round(w*k); h = Math.round(h*k);
+  const c = document.createElement("canvas"); c.width = w; c.height = h;
+  c.getContext("2d").drawImage(v, 0, 0, w, h);
+  const liveQuad = live.lastQuad;
+  if(navigator.vibrate) navigator.vibrate(30);
+  liveStatus("Got it!");
+  closeLive();
+  busy(true); await tick();
+  try{
+    const p = makePage(c);
+    if(!p.detected && liveQuad){ p.corners = liveQuad; p.detected = true; p._warpKey = ""; processPage(p); }
+    pages.push(p);
+    renderPages();
+    openEditor(pages.length - 1, true);
+    toast(p.detected ? "Page scanned ✓" : "Page added — drag the corners onto the edges");
+  }catch(e){ toast("Could not process that page"); }
+  busy(false);
+}
+$("#scanBtn").addEventListener("click", openLive);
+$("#liveClose").addEventListener("click", closeLive);
+$("#shutterBtn").addEventListener("click", ()=>captureLive(true));
+
+
+/* ---------- page grid + footer ---------- */
 function renderPages(){
   const grid = $("#pagesGrid");
   grid.innerHTML = "";
   $("#emptyState").style.display = pages.length ? "none" : "block";
-  $("#exportBar").style.display = pages.length ? "block" : "none";
   pages.forEach((p, i)=>{
     const d = document.createElement("div");
     d.className = "thumb" + (i===editIdx ? " sel" : "");
@@ -200,48 +483,136 @@ function renderPages(){
     del.title = "Remove page";
     del.addEventListener("click", ev=>{
       ev.stopPropagation();
-      pages.splice(i,1);
+      const removed = pages.splice(i, 1)[0];
       if(editIdx === i) closeEditorFn();
       else if(editIdx > i) editIdx--;
       renderPages();
+      toast("Page " + (i+1) + " deleted", 5000, "Undo", ()=>{
+        pages.splice(Math.min(i, pages.length), 0, removed);
+        renderPages();
+      });
     });
     d.append(img, n, del);
-    d.addEventListener("click", ()=> openEditor(i));
+    if(i === editIdx){   // reorder arrows on the selected thumbnail
+      if(i > 0){
+        const l = document.createElement("button");
+        l.className = "mv l"; l.textContent = "◀"; l.title = "Move earlier";
+        l.addEventListener("click", ev=>{ ev.stopPropagation(); movePage(i, i-1); });
+        d.appendChild(l);
+      }
+      if(i < pages.length - 1){
+        const r = document.createElement("button");
+        r.className = "mv r"; r.textContent = "▶"; r.title = "Move later";
+        r.addEventListener("click", ev=>{ ev.stopPropagation(); movePage(i, i+1); });
+        d.appendChild(r);
+      }
+    }
+    d.addEventListener("click", ()=> openEditor(i, false));
     grid.appendChild(d);
   });
+  renderFooter();
 }
+function movePage(from, to){
+  const p = pages.splice(from, 1)[0];
+  pages.splice(to, 0, p);
+  editIdx = to;
+  $("#editorTitle").textContent = "Page " + (to+1);
+  renderPages();
+}
+function renderFooter(){
+  const n = pages.length;
+  $("#pageCount").textContent = n === 0 ? "0 pages" : (n === 1 ? "1 page" : n + " pages");
+  $("#scanBtn").textContent = n ? "📷 Scan next page" : "📷 Scan a page";
+  const main = $("#footMain");
+  if(n){
+    main.textContent = "📤 Save / Share PDF";
+    main.className = "btn good";
+    $("#savePdfBtn").style.display = "";
+    $("#shareImgBtn").style.display = "";
+  } else {
+    main.textContent = "📷 Scan a page";
+    main.className = "btn primary";
+    $("#savePdfBtn").style.display = "none";
+    $("#shareImgBtn").style.display = "none";
+  }
+}
+$("#footMain").addEventListener("click", ()=>{
+  if(pages.length) sharePdf();
+  else openLive();
+});
 
 /* ---------- corner editor ---------- */
 const stageWrap = $("#stageWrap"), stageImg = $("#stageImg"), quadPoly = $("#quadPoly");
 let handles = [];
-function openEditor(i){
-  if(i < 0 || i >= pages.length) return;
-  editIdx = i;
-  const p = pages[i];
-  $("#editorTitle").textContent = "Page " + (i+1);
-  stageImg.src = p.src.toDataURL("image/jpeg", 0.85);
-  $("#editor").style.display = "block";
-  $("#previewWrap").style.display = p.out ? "block" : "none";
-  if(p.out) $("#previewImg").src = p.out.toDataURL("image/jpeg", 0.85);
+function refreshChips(){
+  const p = pages[editIdx];
+  if(!p) return;
   document.querySelectorAll("#modeChips .chip").forEach(ch =>
     ch.classList.toggle("on", ch.dataset.mode === p.mode));
+  $("#autoLine").innerHTML = p.autoWhy ? p.autoWhy : "";
+}
+function openEditor(i, isNew){
+  if(i < 0 || i >= pages.length) return;
+  editIdx = i;
+  editingNew = !!isNew;
+  const p = pages[i];
+  $("#editorTitle").textContent = "Page " + (i+1);
+  $("#addPageBtn").textContent = editingNew ? "Add page ✓" : "Done ✓";
+  $("#detectHint").textContent = p.detected
+    ? "✓ We found the page edges — drag a corner only if it looks off."
+    : "We couldn't find the edges automatically — drag the four corners onto the page edges.";
+  stageImg.src = p.src.toDataURL("image/jpeg", 0.85);
+  $("#editor").style.display = "block";
+  if(p.out){
+    $("#previewImg").src = p.out.toDataURL("image/jpeg", 0.85);
+    $("#previewWrap").style.display = "block";
+  } else {
+    $("#previewWrap").style.display = "none";
+  }
+  refreshChips();
   buildHandles();
   $("#editor").scrollIntoView({behavior:"smooth", block:"start"});
   renderPages();
 }
 function closeEditorFn(){
   editIdx = -1;
+  editingNew = false;
   $("#editor").style.display = "none";
   handles.forEach(h=>h.remove()); handles = [];
   renderPages();
 }
 $("#closeEditor").addEventListener("click", closeEditorFn);
-$("#resetCorners").addEventListener("click", ()=>{
-  if(editIdx < 0) return;
-  const m = 0.06, p = pages[editIdx];
-  p.corners = [{x:m,y:m},{x:1-m,y:m},{x:1-m,y:1-m},{x:m,y:1-m}];
-  positionHandles(); drawQuad();
+$("#addPageBtn").addEventListener("click", ()=>{
+  const n = editIdx + 1;
+  const wasNew = editingNew;
+  closeEditorFn();
+  $("#scanCard").scrollIntoView({behavior:"smooth", block:"start"});
+  if(wasNew) toast("Page " + n + " added ✓ — scan the next page when you're ready");
 });
+$("#resetCorners").addEventListener("click", async ()=>{
+  if(editIdx < 0) return;
+  const p = pages[editIdx];
+  const det = detectQuad(p.src);
+  p.corners = det ? det.corners : insetCorners();
+  p.detected = !!det;
+  $("#detectHint").textContent = p.detected
+    ? "✓ We found the page edges — drag a corner only if it looks off."
+    : "We couldn't find the edges automatically — drag the four corners onto the page edges.";
+  positionHandles(); drawQuad();
+  await reprocess();
+});
+async function reprocess(){
+  if(editIdx < 0) return;
+  busy(true); await tick();
+  const p = pages[editIdx];
+  p.out = null;
+  processPage(p);
+  $("#previewImg").src = p.out.toDataURL("image/jpeg", 0.85);
+  $("#previewWrap").style.display = "block";
+  refreshChips();
+  busy(false);
+  renderPages();
+}
 function buildHandles(){
   handles.forEach(h=>h.remove()); handles = [];
   const p = pages[editIdx];
@@ -253,7 +624,9 @@ function buildHandles(){
     h.addEventListener("pointerdown", ev=>{
       ev.preventDefault();
       h.setPointerCapture(ev.pointerId);
+      let moved = false;
       const move = e=>{
+        moved = true;
         const r = stageWrap.getBoundingClientRect();
         c.x = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
         c.y = Math.min(1, Math.max(0, (e.clientY - r.top) / r.height));
@@ -263,8 +636,7 @@ function buildHandles(){
         h.removeEventListener("pointermove", move);
         h.removeEventListener("pointerup", up);
         h.removeEventListener("pointercancel", up);
-        pages[editIdx].out = null;   // corners changed: stale result
-        $("#previewWrap").style.display = "none";
+        if(moved){ pages[editIdx].detected = true; reprocess(); }  // new corners: auto re-run
       };
       h.addEventListener("pointermove", move);
       h.addEventListener("pointerup", up);
@@ -291,13 +663,18 @@ function drawQuad(){
 }
 window.addEventListener("resize", ()=>{ positionHandles(); drawQuad(); });
 document.querySelectorAll("#modeChips .chip").forEach(ch=>{
-  ch.addEventListener("click", ()=>{
+  ch.addEventListener("click", async ()=>{
     if(editIdx < 0) return;
-    pages[editIdx].mode = ch.dataset.mode;
-    pages[editIdx].out = null;
-    document.querySelectorAll("#modeChips .chip").forEach(c =>
-      c.classList.toggle("on", c === ch));
-    $("#previewWrap").style.display = "none";
+    const p = pages[editIdx];
+    const m = ch.dataset.mode;
+    if(m === "auto"){
+      sessionOverride = null;
+      p.mode = "auto";
+    } else {
+      sessionOverride = m;          // remembered for the rest of the session
+      p.mode = m;
+    }
+    await reprocess();
   });
 });
 
@@ -423,26 +800,60 @@ function enhance(canvas, mode){
   c.getContext("2d").putImageData(out, 0, 0);
   return c;
 }
+
+/* ---------- smart look ---------- */
+const LOOK_NAMES = { color:"Color", bw:"B&W", gray:"Grayscale", original:"Original" };
+function smartLook(canvas){
+  // sample a small copy: low saturation + strong luminance contrast = text page -> B&W
+  const w = 72, h = Math.max(1, Math.round(72 * canvas.height / canvas.width));
+  const c = document.createElement("canvas"); c.width = w; c.height = h;
+  const ctx = c.getContext("2d");
+  ctx.drawImage(canvas, 0, 0, w, h);
+  const d = ctx.getImageData(0, 0, w, h).data;
+  const N = w * h;
+  let satSum = 0, lumSum = 0;
+  const lums = new Float32Array(N);
+  for(let i=0;i<N;i++){
+    const r = d[i*4], g = d[i*4+1], b = d[i*4+2];
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+    satSum += mx === 0 ? 0 : (mx - mn) / mx;
+    const lum = 0.299*r + 0.587*g + 0.114*b;
+    lums[i] = lum; lumSum += lum;
+  }
+  const meanSat = satSum / N, meanLum = lumSum / N;
+  let v = 0;
+  for(let i=0;i<N;i++){ const dd = lums[i] - meanLum; v += dd*dd; }
+  const lumStd = Math.sqrt(v / N);
+  if(meanSat < 0.12 && lumStd > 40){
+    return { mode:"bw", why:"<b>Auto: B&amp;W</b> — looks like a text page" };
+  }
+  return { mode:"color", why:"<b>Auto: Color</b> — photo or color content" };
+}
 function processPage(p){
-  if(!p.out) p.out = enhance(warp(p.src, p.corners), p.mode);
+  const key = p.corners.map(c=>c.x.toFixed(4)+","+c.y.toFixed(4)).join(";");
+  if(!p._warp || p._warpKey !== key){
+    p._warp = warp(p.src, p.corners);
+    p._warpKey = key;
+    p.out = null;
+  }
+  if(p.mode !== "auto"){
+    p.effMode = p.mode;
+    p.autoWhy = "<b>" + LOOK_NAMES[p.mode] + "</b> — your pick, remembered for this session";
+  } else if(sessionOverride){
+    p.effMode = sessionOverride;
+    p.autoWhy = "<b>" + LOOK_NAMES[sessionOverride] + "</b> — your pick, remembered for this session";
+  } else {
+    const s = smartLook(p._warp);
+    p.effMode = s.mode;
+    p.autoWhy = s.why;
+  }
+  if(!p.out) p.out = enhance(p._warp, p.effMode);
   return p.out;
 }
-$("#applyBtn").addEventListener("click", async ()=>{
-  if(editIdx < 0) return;
-  busy(true);
-  await new Promise(r=>setTimeout(r, 30));   // let the busy veil paint
-  const p = pages[editIdx];
-  p.out = null;
-  processPage(p);
-  $("#previewImg").src = p.out.toDataURL("image/jpeg", 0.85);
-  $("#previewWrap").style.display = "block";
-  busy(false);
-  renderPages();
-  toast("Scan ready — check the preview, then send it below");
-});
 
 /* ---------- export: JPEG + hand-rolled PDF ---------- */
-function canvasJpegBlob(canvas, q=0.92){
+function canvasJpegBlob(canvas, q){
+  q = (q === undefined) ? 0.92 : q;
   return new Promise(res=> canvas.toBlob(res, "image/jpeg", q));
 }
 function download(blob, name){
@@ -511,22 +922,22 @@ function stamp(){
 }
 async function ensureProcessed(){
   busy(true);
-  await new Promise(r=>setTimeout(r, 30));
+  await tick();
   pages.forEach(processPage);
   busy(false);
   renderPages();
 }
-$("#sharePdfBtn").addEventListener("click", async ()=>{
+async function sharePdf(){
   if(!pages.length) return;
   await ensureProcessed();
   const pdf = await buildPdf();
-  const name = "scan-" + stamp() + ".pdf";
+  const name = "PocketScan-" + stamp() + ".pdf";
   if(!await shareFile(pdf, name, "application/pdf")){ download(pdf, name); toast("Sharing not available here — PDF saved instead"); }
-});
+}
 $("#savePdfBtn").addEventListener("click", async ()=>{
   if(!pages.length) return;
   await ensureProcessed();
-  download(await buildPdf(), "scan-" + stamp() + ".pdf");
+  download(await buildPdf(), "PocketScan-" + stamp() + ".pdf");
   toast("PDF saved");
 });
 $("#shareImgBtn").addEventListener("click", async ()=>{
@@ -534,9 +945,11 @@ $("#shareImgBtn").addEventListener("click", async ()=>{
   await ensureProcessed();
   const idx = editIdx >= 0 ? editIdx : 0;
   const blob = await canvasJpegBlob(processPage(pages[idx]), 0.92);
-  const name = "scan-page-" + (idx+1) + "-" + stamp() + ".jpg";
+  const name = "PocketScan-" + stamp() + "-p" + (idx+1) + ".jpg";
   if(!await shareFile(blob, name, "image/jpeg")){ download(blob, name); toast("Sharing not available here — image saved instead"); }
 });
+
+renderPages();   // initial footer / empty state
 </script>
 </body>
 </html>
