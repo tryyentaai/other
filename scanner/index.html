@@ -4,77 +4,98 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0b0e13">
+<meta name="theme-color" content="#0a0f16">
 <title>Pocket Scan — Document Scanner</title>
 <style>
   :root{
-    --bg:#0b0e13; --panel:#151a22; --panel2:#1c232e; --line:#2a3342;
-    --text:#eef2f7; --muted:#93a1b3; --accent:#4da3ff; --accent2:#22c07a;
-    --danger:#ff5d5d; --radius:14px;
+    --bg:#0a0f16; --bg-grad:#0e1622; --panel:#121a26; --panel2:#1a2433; --line:#26334a;
+    --text:#eef4fb; --muted:#93a5bd; --accent:#7cc4ff; --accent-ink:#06263f; --accent2:#2fcf8a;
+    --danger:#ff6b6b; --radius:16px;
+    --shadow:0 10px 28px rgba(2,6,12,.45); --shadow-sm:0 4px 14px rgba(2,6,12,.35);
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
-  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
+  html,body{margin:0;padding:0;color:var(--text);
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
-  header{position:sticky;top:0;z-index:20;background:rgba(11,14,19,.92);backdrop-filter:blur(8px);
-    padding:14px 16px 10px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
-  header h1{font-size:19px;margin:0;font-weight:700;letter-spacing:.2px}
-  header .sub{color:var(--muted);font-size:12px;margin-left:auto;text-align:right}
-  main{padding:16px 16px 132px;max-width:640px;margin:0 auto}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px;margin-bottom:14px}
-  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--line);
-    background:var(--panel2);color:var(--text);border-radius:12px;padding:13px 16px;font-size:15px;font-weight:600;
-    cursor:pointer;user-select:none;text-align:center}
+  body{background:linear-gradient(180deg,var(--bg-grad),var(--bg) 240px) fixed,var(--bg)}
+  .ico{width:22px;height:22px;flex:none}
+  .ico.sm{width:17px;height:17px}
+  .ico.lg{width:26px;height:26px}
+  header{position:sticky;top:0;z-index:20;background:rgba(10,15,22,.86);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+    padding:14px 16px 12px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px}
+  header .mark{width:38px;height:38px;flex:none;color:var(--accent)}
+  header h1{font-size:21px;margin:0;font-weight:800;letter-spacing:-.4px;line-height:1.1}
+  header .sub{color:var(--muted);font-size:12px;line-height:1.45;margin-left:auto;text-align:right}
+  main{padding:16px 16px 136px;max-width:640px;margin:0 auto}
+  .card{background:linear-gradient(180deg,rgba(255,255,255,.025),rgba(255,255,255,0)),var(--panel);
+    border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:16px;box-shadow:var(--shadow-sm)}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;border:1px solid var(--line);
+    background:var(--panel2);color:var(--text);border-radius:12px;padding:13px 16px;min-height:48px;font-size:15px;font-weight:600;
+    cursor:pointer;user-select:none;text-align:center;
+    transition:transform .18s ease,background-color .18s ease,border-color .18s ease,box-shadow .18s ease}
   .btn:active{transform:scale(.98)}
-  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
-  .btn.good{background:var(--accent2);border-color:var(--accent2);color:#fff}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);box-shadow:0 6px 18px rgba(124,196,255,.25)}
+  .btn.good{background:var(--accent2);border-color:var(--accent2);color:#04281a;box-shadow:0 6px 18px rgba(47,207,138,.22)}
   .btn.danger{background:transparent;border-color:var(--danger);color:var(--danger)}
   .btn.block{display:flex;width:100%}
-  .btn.small{padding:9px 12px;font-size:13px;border-radius:10px}
-  .btn.big{padding:17px 18px;font-size:17px;border-radius:14px}
+  .btn.small{padding:9px 13px;min-height:40px;font-size:13px;border-radius:10px}
+  .btn.big{padding:17px 18px;min-height:58px;font-size:17px;border-radius:14px}
   .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
   .row .btn{flex:1}
-  .hint{color:var(--muted);font-size:13px;line-height:1.45}
-  #emptyState{padding:26px 10px;text-align:center}
-  #emptyState .big{font-size:40px;margin-bottom:8px}
+  .hint{color:var(--muted);font-size:13px;line-height:1.55}
+  .secLabel{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+  #emptyState{padding:32px 16px 28px;text-align:center}
+  #emptyState .big{display:flex;justify-content:center;color:var(--accent);opacity:.9;margin-bottom:14px}
+  #emptyState .big .ico{width:56px;height:56px}
+  #emptyState .lead{font-size:16px;font-weight:600;color:var(--text);margin:0 0 6px}
   .pages{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:10px}
-  .thumb{position:relative;border-radius:12px;overflow:hidden;border:2px solid var(--line);cursor:pointer;background:#000}
-  .thumb.sel{border-color:var(--accent)}
+  .thumb{position:relative;border-radius:12px;overflow:hidden;border:2px solid var(--line);cursor:pointer;background:#000;
+    transition:border-color .18s ease,transform .18s ease,box-shadow .18s ease}
+  .thumb.sel{border-color:var(--accent);box-shadow:0 0 0 3px rgba(124,196,255,.18)}
   .thumb img{width:100%;height:118px;object-fit:cover;display:block}
-  .thumb .n{position:absolute;left:6px;bottom:6px;background:rgba(0,0,0,.65);color:#fff;font-size:11px;
-    padding:2px 7px;border-radius:20px}
-  .thumb .del{position:absolute;top:5px;right:5px;width:26px;height:26px;border-radius:50%;border:none;
-    background:rgba(0,0,0,.65);color:#fff;font-size:15px;line-height:1;cursor:pointer;z-index:3}
-  .thumb .mv{position:absolute;bottom:5px;width:28px;height:28px;border-radius:50%;border:none;
-    background:rgba(0,0,0,.65);color:#fff;font-size:14px;line-height:1;cursor:pointer;z-index:3}
-  .thumb .mv.l{right:38px}
+  .thumb .n{position:absolute;left:6px;bottom:6px;background:rgba(4,10,18,.72);color:#fff;font-size:11px;font-weight:600;
+    padding:3px 8px;border-radius:20px}
+  .thumb .del{position:absolute;top:5px;right:5px;width:30px;height:30px;border-radius:50%;border:none;display:flex;align-items:center;justify-content:center;
+    background:rgba(4,10,18,.72);color:#fff;cursor:pointer;z-index:3}
+  .thumb .del .ico{width:15px;height:15px}
+  .thumb .mv{position:absolute;bottom:5px;width:30px;height:30px;border-radius:50%;border:none;display:flex;align-items:center;justify-content:center;
+    background:rgba(4,10,18,.72);color:#fff;cursor:pointer;z-index:3}
+  .thumb .mv .ico{width:15px;height:15px}
+  .thumb .mv.l{right:40px}
   .thumb .mv.r{right:5px}
   /* editor */
   #editor{display:none}
-  #stageWrap{position:relative;width:100%;background:#000;border-radius:12px;overflow:hidden;touch-action:none}
+  #editorTitle{font-size:17px;font-weight:700;letter-spacing:-.2px}
+  #stageWrap{position:relative;width:100%;background:#000;border-radius:14px;overflow:hidden;touch-action:none;box-shadow:var(--shadow-sm)}
   #stageImg{display:block;width:100%;height:auto;user-select:none;-webkit-user-drag:none}
-  .handle{position:absolute;width:34px;height:34px;margin:-17px 0 0 -17px;border-radius:50%;
-    border:3px solid var(--accent);background:rgba(77,163,255,.25);z-index:5;touch-action:none;cursor:grab}
-  .handle::after{content:"";position:absolute;inset:11px;border-radius:50%;background:var(--accent)}
+  .handle{position:absolute;width:36px;height:36px;margin:-18px 0 0 -18px;border-radius:50%;
+    border:2.5px solid var(--accent);background:rgba(10,15,22,.35);z-index:5;touch-action:none;cursor:grab;
+    box-shadow:0 2px 10px rgba(2,6,12,.5)}
+  .handle::after{content:"";position:absolute;inset:10.5px;border-radius:50%;background:#fff;
+    box-shadow:0 0 0 2px var(--accent)}
   #quadSvg{position:absolute;inset:0;width:100%;height:100%;z-index:4;pointer-events:none}
-  .chips{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 6px}
-  .chip{border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:9px 13px;border-radius:20px;
-    font-size:13px;font-weight:600;cursor:pointer}
-  .chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  .chips{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 6px}
+  .chip{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:var(--panel2);color:var(--text);
+    padding:10px 14px;min-height:40px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;
+    transition:background-color .18s ease,border-color .18s ease,color .18s ease,transform .18s ease}
+  .chip .ico{width:16px;height:16px}
+  .chip.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
   #autoLine{color:var(--muted);font-size:13px;margin:2px 2px 10px}
   #autoLine b{color:var(--accent2);font-weight:600}
-  #previewWrap{display:none;margin-top:12px}
-  #previewImg{width:100%;border-radius:12px;border:1px solid var(--line);display:block}
-  footer{position:fixed;left:0;right:0;bottom:0;z-index:20;background:rgba(11,14,19,.95);backdrop-filter:blur(8px);
-    border-top:1px solid var(--line);padding:10px 16px calc(10px + env(safe-area-inset-bottom))}
+  #previewWrap{display:none;margin-top:14px}
+  #previewImg{width:100%;border-radius:14px;border:1px solid var(--line);display:block;box-shadow:var(--shadow-sm)}
+  footer{position:fixed;left:0;right:0;bottom:0;z-index:20;background:rgba(10,15,22,.88);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    border-top:1px solid var(--line);box-shadow:0 -8px 24px rgba(2,6,12,.35);
+    padding:12px 16px calc(12px + env(safe-area-inset-bottom))}
   footer .row{max-width:640px;margin:0 auto}
   #pageCount{color:var(--muted);font-size:13px;font-weight:600;white-space:nowrap}
-  #toast{position:fixed;left:50%;bottom:118px;transform:translateX(-50%) translateY(20px);background:#222b38;color:#fff;
-    border:1px solid var(--line);padding:10px 16px;border-radius:24px;font-size:14px;opacity:0;pointer-events:none;
-    transition:all .25s;z-index:80;max-width:88vw;text-align:center;display:flex;gap:12px;align-items:center}
+  #toast{position:fixed;left:50%;bottom:122px;transform:translateX(-50%) translateY(20px);background:#1b2635;color:#fff;
+    border:1px solid var(--line);padding:11px 18px;border-radius:24px;font-size:14px;opacity:0;pointer-events:none;
+    transition:opacity .22s ease,transform .22s ease;z-index:80;max-width:88vw;text-align:center;display:flex;gap:12px;align-items:center;
+    box-shadow:var(--shadow)}
   #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
   #toast.act{pointer-events:auto}
   #toast button{background:none;border:none;color:var(--accent);font-size:14px;font-weight:700;cursor:pointer;padding:2px 4px}
-  #busy{position:fixed;inset:0;background:rgba(5,7,10,.72);display:none;align-items:center;justify-content:center;z-index:90;
+  #busy{position:fixed;inset:0;background:rgba(4,8,13,.72);display:none;align-items:center;justify-content:center;z-index:90;
     color:#fff;font-size:16px;font-weight:600}
   input[type=file]{display:none}
   /* live scan viewfinder */
@@ -82,36 +103,67 @@
   #liveWrap{position:relative;flex:1;overflow:hidden}
   #liveVideo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
   #liveSvg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
-  #liveStatus{position:absolute;left:0;right:0;top:0;padding:calc(12px + env(safe-area-inset-top)) 16px 12px;
-    background:linear-gradient(rgba(0,0,0,.65),transparent);color:#fff;font-size:16px;font-weight:600;text-align:center}
+  #flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none}
+  #flash.go{animation:flashA .28s ease-out}
+  @keyframes flashA{0%{opacity:.85}100%{opacity:0}}
+  #liveStatus{position:absolute;left:0;right:0;top:0;padding:calc(14px + env(safe-area-inset-top)) 16px 26px;
+    background:linear-gradient(rgba(3,7,12,.72),transparent);color:#fff;font-size:16px;font-weight:600;text-align:center;letter-spacing:.1px}
+  #liveStatus.searching{animation:pulse 1.6s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.55}}
   #liveBar{display:flex;align-items:center;justify-content:space-between;gap:14px;
-    padding:14px 22px calc(16px + env(safe-area-inset-bottom));background:#0b0e13}
+    padding:16px 22px calc(18px + env(safe-area-inset-bottom));background:#0a0f16;border-top:1px solid var(--line)}
+  #liveBar .btn{min-height:48px}
   #shutterBtn{width:72px;height:72px;border-radius:50%;border:5px solid #fff;background:var(--accent);
-    cursor:pointer;flex:none}
+    cursor:pointer;flex:none;box-shadow:0 6px 20px rgba(2,6,12,.5);transition:transform .15s ease}
   #shutterBtn:active{transform:scale(.94)}
-  .liveSide{width:72px;display:flex;justify-content:center}
+  .liveSide{width:84px;display:flex;justify-content:center}
+  @media (prefers-reduced-motion: reduce){
+    *,*::before,*::after{animation:none !important;transition:none !important;scroll-behavior:auto !important}
+  }
 </style>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-scan" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 8V5.5A2 2 0 0 1 5.5 3.5H8"/><path d="M16 3.5h2.5a2 2 0 0 1 2 2V8"/><path d="M20.5 16v2.5a2 2 0 0 1-2 2H16"/><path d="M8 20.5H5.5a2 2 0 0 1-2-2V16"/><path d="M3.5 12h17"/></symbol>
+    <symbol id="i-camera" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h2.2l1.8-2.5h8L17.8 8H20a1.5 1.5 0 0 1 1.5 1.5V18a1.5 1.5 0 0 1-1.5 1.5H4A1.5 1.5 0 0 1 2.5 18V9.5A1.5 1.5 0 0 1 4 8Z"/><circle cx="12" cy="13.2" r="3.4"/></symbol>
+    <symbol id="i-image" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2"/><circle cx="9" cy="10" r="1.7"/><path d="M4.5 18.5 10 13l3.2 3 2.6-2.4 4.7 4.4"/></symbol>
+    <symbol id="i-share" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3.5"/><path d="M7.5 7 12 2.8 16.5 7"/><path d="M5 12.5v7A1.5 1.5 0 0 0 6.5 21h11A1.5 1.5 0 0 0 19 19.5v-7"/></symbol>
+    <symbol id="i-stack" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 8.5 15.5 4 19 5.8v9.7L10.5 20 7 18.2Z"/><path d="M7 8.5 15.5 4l-1-2.8L4 7l3 1.6"/><path d="M10.5 20 7 18.2V8.5"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.5 10 18 19.5 6.5"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 5.5l13 13M18.5 5.5l-13 13"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6.5h16"/><path d="M9.5 6V4.2A1.2 1.2 0 0 1 10.7 3h2.6A1.2 1.2 0 0 1 14.5 4.2V6"/><path d="M6.5 6.5 7.4 19a1.6 1.6 0 0 0 1.6 1.5h6A1.6 1.6 0 0 0 16.6 19l.9-12.5"/><path d="M10 10.5v6M14 10.5v6"/></symbol>
+    <symbol id="i-chev-l" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 5.5 8 12l6.5 6.5"/></symbol>
+    <symbol id="i-chev-r" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 5.5 16 12l-6.5 6.5"/></symbol>
+    <symbol id="i-spark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5 14.2 9.8 21.5 12 14.2 14.2 12 21.5 9.8 14.2 2.5 12 9.8 9.8Z"/></symbol>
+    <symbol id="i-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.8 12S6 5.8 12 5.8 21.2 12 21.2 12 18 18.2 12 18.2 2.8 12 2.8 12Z"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-doc" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 3.5h7.2L19 8.8v11.7H6.5Z"/><path d="M13.5 3.5v5.5H19"/><path d="M9.5 13.5h5.5M9.5 17h5.5"/></symbol>
+    <symbol id="i-half" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5a8.5 8.5 0 0 1 0 17Z" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-save" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v10.5"/><path d="M7.5 10.2 12 14.7l4.5-4.5"/><path d="M4.5 17.5v1.7A1.3 1.3 0 0 0 5.8 20.5h12.4a1.3 1.3 0 0 0 1.3-1.3v-1.7"/></symbol>
+  </defs>
+</svg>
 <header>
-  <h1>📄 Pocket Scan</h1>
+  <svg class="mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 8V5.5A2 2 0 0 1 5.5 3.5H8"/><path d="M16 3.5h2.5a2 2 0 0 1 2 2V8"/><path d="M20.5 16v2.5a2 2 0 0 1-2 2H16"/><path d="M8 20.5H5.5a2 2 0 0 1-2-2V16"/><path d="M3.5 12h17"/></svg>
+  <h1>Pocket Scan</h1>
   <div class="sub">Auto-detect pages<br>Scan in one tap</div>
 </header>
 
 <main>
   <div class="card" id="scanCard">
-    <button class="btn primary big block" id="scanBtn">📷 Scan a page</button>
+    <button class="btn primary big block" id="scanBtn"><svg class="ico lg"><use href="#i-scan"/></svg><span id="scanBtnLabel">Scan a page</span></button>
     <div class="row" style="margin-top:10px">
-      <label class="btn" for="camInput">📸 Take photo</label>
-      <label class="btn" for="libInput">🖼 From photos</label>
+      <label class="btn" for="camInput"><svg class="ico"><use href="#i-camera"/></svg>Take photo</label>
+      <label class="btn" for="libInput"><svg class="ico"><use href="#i-image"/></svg>From photos</label>
     </div>
     <p class="hint" style="margin:10px 2px 0">Point the camera at a page — Pocket Scan finds the edges, straightens it and picks the right look automatically. Everything is processed on your phone — nothing is uploaded anywhere.</p>
   </div>
 
   <div class="card" id="pagesCard">
     <div id="emptyState">
-      <div class="big">🗂️</div>
-      <div class="hint">No pages yet. Scan your first page to get started.<br>Pages are combined into one PDF when you send them.</div>
+      <div class="big"><svg class="ico"><use href="#i-stack"/></svg></div>
+      <p class="lead">No pages yet</p>
+      <div class="hint">Scan your first page to get started.<br>Pages combine into one PDF when you send them.</div>
+      <button class="btn primary" id="emptyScanBtn" style="margin-top:16px"><svg class="ico"><use href="#i-scan"/></svg>Scan a page</button>
     </div>
     <div class="pages" id="pagesGrid"></div>
   </div>
@@ -124,21 +176,22 @@
     <p class="hint" id="detectHint" style="margin:0 2px 10px"></p>
     <div id="stageWrap">
       <img id="stageImg" alt="Captured page">
-      <svg id="quadSvg" preserveAspectRatio="none"><polygon id="quadPoly" fill="rgba(77,163,255,.14)" stroke="#4da3ff" stroke-width="2"/></svg>
+      <svg id="quadSvg" preserveAspectRatio="none"><polygon id="quadPoly" fill="rgba(124,196,255,.13)" stroke="#7cc4ff" stroke-width="2"/></svg>
     </div>
+    <p class="secLabel" style="margin:14px 2px 0">Look</p>
     <div class="chips" id="modeChips">
-      <button class="chip" data-mode="auto">🤖 Auto</button>
-      <button class="chip" data-mode="color">✨ Color scan</button>
-      <button class="chip" data-mode="bw">🖨 B&amp;W</button>
-      <button class="chip" data-mode="gray">◐ Grayscale</button>
+      <button class="chip" data-mode="auto"><svg class="ico"><use href="#i-spark"/></svg>Auto</button>
+      <button class="chip" data-mode="color"><svg class="ico"><use href="#i-eye"/></svg>Color scan</button>
+      <button class="chip" data-mode="bw"><svg class="ico"><use href="#i-doc"/></svg>B&amp;W</button>
+      <button class="chip" data-mode="gray"><svg class="ico"><use href="#i-half"/></svg>Grayscale</button>
       <button class="chip" data-mode="original">Original</button>
     </div>
     <p id="autoLine"></p>
     <div id="previewWrap">
-      <p class="hint" style="margin:4px 2px 6px">Result — this is exactly what gets sent:</p>
+      <p class="secLabel" style="margin:4px 2px 8px">Result — this is exactly what gets sent</p>
       <img id="previewImg" alt="Processed scan">
     </div>
-    <button class="btn good big block" id="addPageBtn" style="margin-top:12px">Add page ✓</button>
+    <button class="btn good big block" id="addPageBtn" style="margin-top:12px"><svg class="ico lg"><use href="#i-check"/></svg><span id="addPageLabel">Add page</span></button>
     <div class="row" style="margin-top:10px">
       <button class="btn" id="closeEditor">Close editor</button>
     </div>
@@ -148,9 +201,9 @@
 <footer id="exportBar">
   <div class="row">
     <span id="pageCount">0 pages</span>
-    <button class="btn primary" id="footMain">📷 Scan a page</button>
-    <button class="btn" id="savePdfBtn" style="display:none">Save PDF</button>
-    <button class="btn" id="shareImgBtn" style="display:none">Page image</button>
+    <button class="btn primary" id="footMain"><svg class="ico"><use href="#i-scan"/></svg><span id="footMainLabel">Scan a page</span></button>
+    <button class="btn" id="savePdfBtn" style="display:none"><svg class="ico sm"><use href="#i-save"/></svg>Save PDF</button>
+    <button class="btn" id="shareImgBtn" style="display:none"><svg class="ico sm"><use href="#i-image"/></svg>Page image</button>
   </div>
 </footer>
 
@@ -158,16 +211,21 @@
   <div id="liveWrap">
     <video id="liveVideo" autoplay muted playsinline></video>
     <svg id="liveSvg" viewBox="0 0 100 100" preserveAspectRatio="none">
-      <polygon id="livePoly" fill="rgba(34,192,122,.16)" stroke="#22c07a" stroke-width="0.7" points="" style="display:none"/>
+      <path id="liveShade" fill="rgba(3,7,12,.45)" fill-rule="evenodd" style="display:none" d=""/>
+      <polygon id="livePoly" fill="rgba(124,196,255,.10)" stroke="#7cc4ff" stroke-width="0.7" points="" style="display:none"/>
+      <g id="liveBrackets" fill="none" stroke="#7cc4ff" stroke-width="1.1" stroke-linecap="round" style="display:none">
+        <path d=""/><path d=""/><path d=""/><path d=""/>
+      </g>
       <g id="liveDots" style="display:none">
-        <circle r="1.6" fill="#22c07a"/><circle r="1.6" fill="#22c07a"/>
-        <circle r="1.6" fill="#22c07a"/><circle r="1.6" fill="#22c07a"/>
+        <circle r="1.7" fill="#ffffff" stroke="#7cc4ff" stroke-width="0.8"/><circle r="1.7" fill="#ffffff" stroke="#7cc4ff" stroke-width="0.8"/>
+        <circle r="1.7" fill="#ffffff" stroke="#7cc4ff" stroke-width="0.8"/><circle r="1.7" fill="#ffffff" stroke="#7cc4ff" stroke-width="0.8"/>
       </g>
     </svg>
+    <div id="flash"></div>
     <div id="liveStatus">Looking for a page…</div>
   </div>
   <div id="liveBar">
-    <div class="liveSide"><button class="btn" id="liveClose">✕ Close</button></div>
+    <div class="liveSide"><button class="btn" id="liveClose"><svg class="ico sm"><use href="#i-x"/></svg>Close</button></div>
     <button id="shutterBtn" title="Capture now" aria-label="Capture now"></button>
     <div class="liveSide"><span class="hint">or tap<br>the shutter</span></div>
   </div>
@@ -337,7 +395,7 @@ async function ingestCanvas(src, isNew){
     pages.push(p);
     renderPages();
     openEditor(pages.length - 1, isNew !== false);
-    toast(p.detected ? "Page scanned ✓" : "Page added — drag the corners onto the edges");
+    toast(p.detected ? "Page scanned" : "Page added — drag the corners onto the edges");
   }catch(e){ toast("Could not process that page"); }
   busy(false);
 }
@@ -354,7 +412,7 @@ async function addFiles(fileList){
     }
     renderPages();
     openEditor(firstNew, true);
-    toast(files.length > 1 ? files.length + " pages scanned ✓" : (pages[firstNew].detected ? "Page scanned ✓" : "Page added — drag the corners onto the edges"));
+    toast(files.length > 1 ? files.length + " pages scanned" : (pages[firstNew].detected ? "Page scanned" : "Page added — drag the corners onto the edges"));
   }catch(e){ toast("Could not read that image"); }
   busy(false);
 }
@@ -363,12 +421,30 @@ $("#libInput").addEventListener("change", e=>{ addFiles(e.target.files); e.targe
 
 /* ---------- live scan mode ---------- */
 const live = { stream:null, timer:null, detCanvas:null, lastQuad:null, stableSince:0, capturing:false };
-function liveStatus(t){ $("#liveStatus").textContent = t; }
+function liveStatus(t){
+  const el = $("#liveStatus");
+  el.textContent = t;
+  el.classList.toggle("searching", t.indexOf("Looking") === 0);
+}
 function drawLiveQuad(quad){
-  const poly = $("#livePoly"), dots = $("#liveDots");
-  if(!quad){ poly.style.display = "none"; dots.style.display = "none"; return; }
-  poly.setAttribute("points", quad.map(c => (c.x*100).toFixed(1) + "," + (c.y*100).toFixed(1)).join(" "));
+  const poly = $("#livePoly"), dots = $("#liveDots"), shade = $("#liveShade"), br = $("#liveBrackets");
+  if(!quad){ poly.style.display = "none"; dots.style.display = "none"; shade.style.display = "none"; br.style.display = "none"; return; }
+  const pts = quad.map(c => ({ x:c.x*100, y:c.y*100 }));
+  const str = pts.map(p => p.x.toFixed(1) + "," + p.y.toFixed(1)).join(" ");
+  poly.setAttribute("points", str);
   poly.style.display = "";
+  shade.setAttribute("d", "M0 0H100V100H0Z M" + str.replace(/ /g, " L") + " Z");
+  shade.style.display = "";
+  const bp = br.querySelectorAll("path"), L = 5;
+  pts.forEach((p, i)=>{
+    const a = pts[(i+3)%4], b = pts[(i+1)%4];
+    const ux = b.x-p.x, uy = b.y-p.y, ul = Math.hypot(ux, uy) || 1;
+    const vx = a.x-p.x, vy = a.y-p.y, vl = Math.hypot(vx, vy) || 1;
+    bp[i].setAttribute("d", "M" + (p.x + ux/ul*L).toFixed(1) + " " + (p.y + uy/ul*L).toFixed(1) +
+      " L" + p.x.toFixed(1) + " " + p.y.toFixed(1) +
+      " L" + (p.x + vx/vl*L).toFixed(1) + " " + (p.y + vy/vl*L).toFixed(1));
+  });
+  br.style.display = "";
   const cs = dots.querySelectorAll("circle");
   quad.forEach((c, i)=>{ cs[i].setAttribute("cx", c.x*100); cs[i].setAttribute("cy", c.y*100); });
   dots.style.display = "";
@@ -450,6 +526,9 @@ async function captureLive(manual){
   const liveQuad = live.lastQuad;
   if(navigator.vibrate) navigator.vibrate(30);
   liveStatus("Got it!");
+  const fl = $("#flash");   // capture flash feedback before the view closes
+  fl.classList.remove("go"); void fl.offsetWidth; fl.classList.add("go");
+  await new Promise(r=>setTimeout(r, 210));
   closeLive();
   busy(true); await tick();
   try{
@@ -458,11 +537,12 @@ async function captureLive(manual){
     pages.push(p);
     renderPages();
     openEditor(pages.length - 1, true);
-    toast(p.detected ? "Page scanned ✓" : "Page added — drag the corners onto the edges");
+    toast(p.detected ? "Page scanned" : "Page added — drag the corners onto the edges");
   }catch(e){ toast("Could not process that page"); }
   busy(false);
 }
 $("#scanBtn").addEventListener("click", openLive);
+$("#emptyScanBtn").addEventListener("click", openLive);
 $("#liveClose").addEventListener("click", closeLive);
 $("#shutterBtn").addEventListener("click", ()=>captureLive(true));
 
@@ -479,8 +559,9 @@ function renderPages(){
     img.src = (p.out || p.src).toDataURL("image/jpeg", 0.6);
     img.alt = "Page " + (i+1);
     const n = document.createElement("span"); n.className = "n"; n.textContent = "Page " + (i+1);
-    const del = document.createElement("button"); del.className = "del"; del.textContent = "×";
-    del.title = "Remove page";
+    const del = document.createElement("button"); del.className = "del";
+    del.innerHTML = '<svg class="ico"><use href="#i-trash"/></svg>';
+    del.title = "Remove page"; del.setAttribute("aria-label", "Remove page");
     del.addEventListener("click", ev=>{
       ev.stopPropagation();
       const removed = pages.splice(i, 1)[0];
@@ -496,13 +577,13 @@ function renderPages(){
     if(i === editIdx){   // reorder arrows on the selected thumbnail
       if(i > 0){
         const l = document.createElement("button");
-        l.className = "mv l"; l.textContent = "◀"; l.title = "Move earlier";
+        l.className = "mv l"; l.innerHTML = '<svg class="ico"><use href="#i-chev-l"/></svg>'; l.title = "Move earlier";
         l.addEventListener("click", ev=>{ ev.stopPropagation(); movePage(i, i-1); });
         d.appendChild(l);
       }
       if(i < pages.length - 1){
         const r = document.createElement("button");
-        r.className = "mv r"; r.textContent = "▶"; r.title = "Move later";
+        r.className = "mv r"; r.innerHTML = '<svg class="ico"><use href="#i-chev-r"/></svg>'; r.title = "Move later";
         r.addEventListener("click", ev=>{ ev.stopPropagation(); movePage(i, i+1); });
         d.appendChild(r);
       }
@@ -522,15 +603,17 @@ function movePage(from, to){
 function renderFooter(){
   const n = pages.length;
   $("#pageCount").textContent = n === 0 ? "0 pages" : (n === 1 ? "1 page" : n + " pages");
-  $("#scanBtn").textContent = n ? "📷 Scan next page" : "📷 Scan a page";
+  $("#scanBtnLabel").textContent = n ? "Scan next page" : "Scan a page";
   const main = $("#footMain");
   if(n){
-    main.textContent = "📤 Save / Share PDF";
+    $("#footMainLabel").textContent = "Save / Share PDF";
+    main.querySelector("use").setAttribute("href", "#i-share");
     main.className = "btn good";
     $("#savePdfBtn").style.display = "";
     $("#shareImgBtn").style.display = "";
   } else {
-    main.textContent = "📷 Scan a page";
+    $("#footMainLabel").textContent = "Scan a page";
+    main.querySelector("use").setAttribute("href", "#i-scan");
     main.className = "btn primary";
     $("#savePdfBtn").style.display = "none";
     $("#shareImgBtn").style.display = "none";
@@ -557,9 +640,9 @@ function openEditor(i, isNew){
   editingNew = !!isNew;
   const p = pages[i];
   $("#editorTitle").textContent = "Page " + (i+1);
-  $("#addPageBtn").textContent = editingNew ? "Add page ✓" : "Done ✓";
+  $("#addPageLabel").textContent = editingNew ? "Add page" : "Done";
   $("#detectHint").textContent = p.detected
-    ? "✓ We found the page edges — drag a corner only if it looks off."
+    ? "We found the page edges — drag a corner only if it looks off."
     : "We couldn't find the edges automatically — drag the four corners onto the page edges.";
   stageImg.src = p.src.toDataURL("image/jpeg", 0.85);
   $("#editor").style.display = "block";
@@ -587,7 +670,7 @@ $("#addPageBtn").addEventListener("click", ()=>{
   const wasNew = editingNew;
   closeEditorFn();
   $("#scanCard").scrollIntoView({behavior:"smooth", block:"start"});
-  if(wasNew) toast("Page " + n + " added ✓ — scan the next page when you're ready");
+  if(wasNew) toast("Page " + n + " added — scan the next page when you're ready");
 });
 $("#resetCorners").addEventListener("click", async ()=>{
   if(editIdx < 0) return;
@@ -596,7 +679,7 @@ $("#resetCorners").addEventListener("click", async ()=>{
   p.corners = det ? det.corners : insetCorners();
   p.detected = !!det;
   $("#detectHint").textContent = p.detected
-    ? "✓ We found the page edges — drag a corner only if it looks off."
+    ? "We found the page edges — drag a corner only if it looks off."
     : "We couldn't find the edges automatically — drag the four corners onto the page edges.";
   positionHandles(); drawQuad();
   await reprocess();
