@@ -1,0 +1,1977 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#10151d">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src blob: data:; media-src blob:; connect-src 'none'; font-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Outfitter — your closet, dealt</title>
+<meta name="description" content="Photograph your clothes once. Tap an occasion, get dressed. Fully on-device.">
+<script>
+/* First-paint theme: dark by default (a dim bedroom is the primary context).
+   A saved "match phone" choice is mirrored to localStorage so the first
+   paint can honor it without waiting on IndexedDB. Theme is a display
+   preference string only — no tokens or data live in localStorage. */
+try {
+  var t = localStorage.getItem('outfitter-theme');
+  if (t === 'system' && window.matchMedia && matchMedia('(prefers-color-scheme: light)').matches) {
+    document.documentElement.setAttribute('data-theme', 'light');
+  }
+} catch (e) {}
+</script>
+<style>
+/* ============ Tokens: primitives -> semantic -> component ============ */
+:root{
+  --ink-950:#0b0f16; --ink-900:#10151d; --ink-800:#171e29; --ink-700:#212b3a;
+  --bone-50:#f6f1e7; --bone-100:#ece5d8; --bone-300:#cfc4ae; --bone-500:#9a8f7a;
+  --cognac-400:#cd9464; --cognac-500:#c08552; --cognac-600:#a56f3f;
+  --red-400:#e07856; --green-400:#7fb069;
+  --bg:var(--ink-900); --bg-deep:var(--ink-950);
+  --surface:var(--ink-800); --surface-2:var(--ink-700);
+  --text:var(--bone-100); --text-dim:var(--bone-300); --text-faint:var(--bone-500);
+  --accent:var(--cognac-400); --accent-strong:var(--cognac-500);
+  --line:rgba(236,229,216,.14); --line-strong:rgba(236,229,216,.28);
+  --danger:var(--red-400); --ok:var(--green-400);
+  --photo-back:#232d3d;
+  --dock-bg:rgba(16,21,29,.92);
+  --btn-primary-bg:var(--cognac-500); --btn-primary-text:#14100b;
+  --chip-bg:var(--ink-700); --chip-on-bg:var(--cognac-500); --chip-on-text:#14100b;
+  --shadow:0 10px 30px rgba(0,0,0,.45);
+}
+:root[data-theme="light"]{
+  --bg:#f2ecdf; --bg-deep:#e9e1cf;
+  --surface:#faf6ec; --surface-2:#efe7d5;
+  --text:#1d2531; --text-dim:#4c463a; --text-faint:#7d7462;
+  --accent:#a56f3f; --accent-strong:#8f5f33;
+  --line:rgba(29,37,49,.14); --line-strong:rgba(29,37,49,.3);
+  --photo-back:#ddd2ba;
+  --dock-bg:rgba(242,236,223,.94);
+  --btn-primary-bg:#a56f3f; --btn-primary-text:#fff8ec;
+  --chip-bg:#e7ddc8; --chip-on-bg:#a56f3f; --chip-on-text:#fff8ec;
+  --shadow:0 10px 30px rgba(60,45,20,.18);
+}
+/* ============ Base ============ */
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+html,body{margin:0; padding:0}
+body{
+  background:var(--bg); color:var(--text);
+  font:17px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  padding-bottom:calc(86px + env(safe-area-inset-bottom));
+  min-height:100svh;
+}
+h1,h2,h3{font-family:Georgia, "Times New Roman", ui-serif, serif; font-weight:600; margin:0}
+button{font:inherit; color:inherit; background:none; border:none; cursor:pointer; padding:0}
+button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focus-visible{outline:3px solid var(--accent); outline-offset:2px; border-radius:8px}
+img{display:block}
+svg.ic{width:24px; height:24px; flex:none; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round}
+svg.ic.fill{fill:currentColor; stroke:none}
+main{max-width:560px; margin:0 auto; padding:18px 16px 8px}
+/* ============ Header ============ */
+header.app{max-width:560px; margin:0 auto; padding:calc(14px + env(safe-area-inset-top)) 16px 4px; display:flex; align-items:baseline; justify-content:space-between}
+.wordmark{font-family:Georgia, "Times New Roman", ui-serif, serif; font-size:26px; letter-spacing:.14em; text-transform:uppercase}
+.wordmark small{display:block; font-family:inherit; font-size:11px; letter-spacing:.22em; color:var(--text-faint); text-transform:uppercase; margin-top:2px}
+/* ============ Banner ============ */
+.banner{display:none; margin:12px 16px 0; max-width:528px; margin-left:auto; margin-right:auto; background:var(--surface); border:1px solid var(--danger); border-radius:14px; padding:12px 14px; font-size:15px}
+.banner.show{display:block}
+.banner strong{color:var(--danger)}
+/* ============ Views ============ */
+.view{display:none}
+.view.active{display:block}
+/* ============ Empty state ============ */
+.empty{padding:9svh 8px 0; text-align:left}
+.empty h1{font-size:34px; line-height:1.15; margin-bottom:12px}
+.empty p{font-size:19px; color:var(--text-dim); margin:0 0 10px; max-width:34ch}
+.empty .cap{font-size:15px; color:var(--text-faint)}
+/* ============ Buttons ============ */
+.btn{display:flex; align-items:center; justify-content:center; gap:10px; width:100%; min-height:56px; border-radius:16px; background:var(--surface-2); color:var(--text); font-weight:600; font-size:17px; padding:12px 18px; border:1px solid var(--line)}
+.btn.primary{background:var(--btn-primary-bg); color:var(--btn-primary-text); border-color:transparent; min-height:64px; font-size:19px}
+.btn.quiet{background:transparent; border-color:transparent; color:var(--text-dim); font-weight:500}
+.btn.danger-outline{border-color:var(--danger); color:var(--danger); background:transparent}
+.btn:disabled{opacity:.45; cursor:default}
+.btn-row{display:flex; gap:10px}
+.btn-row .btn{flex:1}
+.link-btn{color:var(--accent); font-weight:600; text-decoration:underline; text-underline-offset:3px; min-height:44px; display:inline-flex; align-items:center}
+/* ============ Occasion chips ============ */
+.occ-row{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:14px 0 16px}
+.occ{min-height:56px; border-radius:16px; background:var(--chip-bg); border:1px solid var(--line); font-weight:600; font-size:17px; display:flex; align-items:center; justify-content:center; padding:10px}
+.occ[aria-pressed="true"]{background:var(--chip-on-bg); color:var(--chip-on-text); border-color:transparent}
+/* ============ Outfit card ============ */
+.outfit{background:var(--surface); border:1px solid var(--line); border-radius:22px; overflow:hidden; box-shadow:var(--shadow)}
+.outfit .slot{position:relative; border-bottom:1px solid var(--line); background:var(--photo-back); cursor:pointer}
+.outfit .slot:last-of-type{border-bottom:none}
+.outfit .slot img{width:100%; height:172px; object-fit:cover}
+.outfit .slot .tag{position:absolute; left:12px; bottom:10px; background:rgba(10,13,18,.72); color:#f2ecdf; font-size:13px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; padding:5px 10px; border-radius:999px}
+.outfit .slot .guess{position:absolute; right:12px; bottom:10px; background:rgba(10,13,18,.72); color:#f0c98f; font-size:12px; font-weight:600; padding:5px 10px; border-radius:999px}
+.rate-row{display:flex; border-top:1px solid var(--line)}
+.rate-row button{flex:1; min-height:58px; display:flex; align-items:center; justify-content:center; gap:9px; font-weight:600; font-size:16px}
+.rate-row button + button{border-left:1px solid var(--line)}
+.rate-row .loved-on{color:var(--ok)}
+.card-note{padding:12px 16px; font-size:14.5px; color:var(--text-dim); border-top:1px solid var(--line)}
+.morning-actions{margin-top:14px; display:grid; gap:10px}
+.deal-state{background:var(--surface); border:1px solid var(--line); border-radius:22px; padding:22px 18px}
+.deal-state h2{font-size:23px; margin-bottom:8px}
+.deal-state p{color:var(--text-dim); margin:0 0 6px}
+.deal-state .btn{margin-top:12px}
+.done-note{text-align:center; padding:8svh 12px 0}
+.done-note h2{font-size:27px; margin-bottom:10px}
+.done-note p{color:var(--text-dim)}
+/* ============ Closet ============ */
+.cap-line{color:var(--text-dim); font-size:15.5px; margin:2px 0 14px}
+.strip{background:var(--surface); border:1px solid var(--accent); border-radius:16px; padding:12px 14px; margin-bottom:14px}
+.strip h3{font-size:17px; margin-bottom:4px}
+.strip p{margin:0; color:var(--text-dim); font-size:14.5px}
+.strip .btn{margin-top:10px; min-height:48px}
+.filter-row{display:flex; gap:8px; overflow-x:auto; padding-bottom:6px; margin-bottom:12px; scrollbar-width:none}
+.filter-row::-webkit-scrollbar{display:none}
+.fchip{flex:none; min-height:44px; padding:8px 16px; border-radius:999px; background:var(--chip-bg); border:1px solid var(--line); font-weight:600; font-size:15px}
+.fchip[aria-pressed="true"]{background:var(--chip-on-bg); color:var(--chip-on-text); border-color:transparent}
+.grid{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+.cell{background:var(--surface); border:1px solid var(--line); border-radius:16px; overflow:hidden; position:relative; text-align:left; width:100%}
+.cell img{width:100%; aspect-ratio:1/1; object-fit:cover; background:var(--photo-back)}
+.cell .cap{padding:9px 11px 11px; font-size:14.5px; font-weight:600; line-height:1.3}
+.cell .sub{padding:0 11px 10px; margin-top:-6px; font-size:12.5px; color:var(--text-faint); font-weight:500}
+.cell .badge{position:absolute; top:8px; left:8px; background:rgba(10,13,18,.75); color:#f0c98f; font-size:11.5px; font-weight:700; padding:4px 8px; border-radius:999px}
+.cell .badge.wash{color:#bcd7f0}
+.cell.retired{opacity:.45}
+.cell .retire-btn{position:absolute; top:6px; right:6px; width:44px; height:44px; display:flex; align-items:center; justify-content:center; background:rgba(10,13,18,.55); border-radius:12px; color:#f2ecdf}
+/* ============ Dock ============ */
+nav.dock{position:fixed; left:0; right:0; bottom:0; background:var(--dock-bg); backdrop-filter:blur(14px); border-top:1px solid var(--line); padding:8px 10px calc(8px + env(safe-area-inset-bottom)); z-index:40}
+nav.dock .inner{max-width:560px; margin:0 auto; display:flex; gap:6px; align-items:stretch}
+nav.dock button{flex:1; min-height:56px; border-radius:14px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; font-size:12.5px; font-weight:600; color:var(--text-dim)}
+nav.dock button[aria-current="page"]{color:var(--accent); background:var(--surface)}
+nav.dock button.add{color:var(--btn-primary-text); background:var(--btn-primary-bg); flex:1.25; font-size:13.5px}
+/* ============ Sheets ============ */
+.sheet-wrap{position:fixed; inset:0; background:rgba(5,7,10,.62); display:none; z-index:60; align-items:flex-end; justify-content:center}
+.sheet-wrap.show{display:flex}
+.sheet{background:var(--bg); width:100%; max-width:560px; max-height:92svh; overflow-y:auto; border-radius:24px 24px 0 0; padding:20px 18px calc(20px + env(safe-area-inset-bottom)); box-shadow:var(--shadow)}
+.sheet h2{font-size:23px; margin-bottom:6px}
+.sheet .lede{color:var(--text-dim); margin:0 0 14px; font-size:15.5px}
+.sheet .photo-large{width:100%; aspect-ratio:4/5; object-fit:cover; border-radius:16px; background:var(--photo-back); margin-bottom:14px}
+.field{margin:16px 0}
+.field > span{display:block; font-size:13px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-faint); margin-bottom:8px}
+.chips{display:flex; flex-wrap:wrap; gap:8px}
+.chip{min-height:44px; padding:9px 15px; border-radius:999px; background:var(--chip-bg); border:1px solid var(--line); font-weight:600; font-size:15px}
+.chip[aria-pressed="true"]{background:var(--chip-on-bg); color:var(--chip-on-text); border-color:transparent}
+input[type="text"], select{width:100%; min-height:52px; border-radius:12px; border:1px solid var(--line-strong); background:var(--surface); color:var(--text); font:inherit; padding:10px 12px}
+.toggle-row{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:13px 2px; border-bottom:1px solid var(--line)}
+.toggle-row .lbl{font-weight:600}
+.toggle-row .hint{font-size:13.5px; color:var(--text-faint); font-weight:400}
+.switch{width:58px; height:34px; border-radius:999px; background:var(--surface-2); border:1px solid var(--line-strong); position:relative; flex:none}
+.switch::after{content:""; position:absolute; top:3px; left:3px; width:26px; height:26px; border-radius:50%; background:var(--bone-100); transition:left .15s ease}
+.switch[aria-checked="true"]{background:var(--accent-strong)}
+.switch[aria-checked="true"]::after{left:27px}
+/* ============ Add flow ============ */
+.addflow{position:fixed; inset:0; background:var(--bg); z-index:50; display:none; overflow-y:auto; padding:calc(16px + env(safe-area-inset-top)) 16px calc(20px + env(safe-area-inset-bottom))}
+.addflow.show{display:block}
+.addflow .inner{max-width:560px; margin:0 auto}
+.addflow h2{font-size:25px; margin-bottom:6px}
+.addflow .lede{color:var(--text-dim); margin:0 0 16px}
+.cat-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:14px}
+.cat-btn{min-height:76px; border-radius:18px; background:var(--surface); border:1px solid var(--line); font-weight:700; font-size:19px; display:flex; align-items:center; justify-content:center}
+.saved-note{display:flex; align-items:center; gap:10px; color:var(--ok); font-weight:700; margin:4px 0 2px}
+/* ============ Settings ============ */
+.set-group{background:var(--surface); border:1px solid var(--line); border-radius:18px; padding:16px; margin-bottom:14px}
+.set-group h3{font-size:18px; margin-bottom:6px}
+.set-group p{color:var(--text-dim); font-size:15px; margin:0 0 10px}
+.set-group p.plain{color:var(--text)}
+.set-group .btn{margin-top:8px}
+.rej-row{display:flex; align-items:center; gap:10px; padding:11px 0; border-bottom:1px solid var(--line)}
+.rej-row:last-child{border-bottom:none}
+.rej-row .txt{flex:1; font-size:15px}
+.rej-row .txt small{display:block; color:var(--text-faint); font-size:13px}
+.rej-row .btn{width:auto; min-height:44px; padding:8px 14px; font-size:14.5px}
+/* ============ Pick my own ============ */
+.pick-slot{margin-bottom:18px}
+.pick-slot h3{font-size:17px; margin-bottom:8px}
+.pick-strip{display:flex; gap:10px; overflow-x:auto; padding-bottom:6px; scrollbar-width:none}
+.pick-strip::-webkit-scrollbar{display:none}
+.pick-cell{flex:none; width:104px; border-radius:14px; overflow:hidden; border:2px solid var(--line); background:var(--surface); padding:0; text-align:left}
+.pick-cell img{width:100%; aspect-ratio:1/1; object-fit:cover; background:var(--photo-back)}
+.pick-cell .cap{font-size:12px; font-weight:600; padding:6px 8px; line-height:1.25}
+.pick-cell[aria-pressed="true"]{border-color:var(--accent)}
+.pick-cell.none-cell{display:flex; align-items:center; justify-content:center; min-height:104px; color:var(--text-dim); font-weight:600; font-size:14px}
+/* ============ Toast ============ */
+.toast{position:fixed; left:16px; right:16px; bottom:calc(104px + env(safe-area-inset-bottom)); max-width:528px; margin:0 auto; background:var(--surface-2); border:1px solid var(--line-strong); border-radius:14px; padding:13px 16px; display:none; align-items:center; gap:12px; z-index:80; box-shadow:var(--shadow)}
+.toast.show{display:flex}
+.toast .msg{flex:1; font-size:15px; font-weight:600}
+.toast button{color:var(--accent); font-weight:700; min-height:44px; padding:4px 8px}
+.hidden{display:none !important}
+@media (prefers-reduced-motion: reduce){
+  .switch::after{transition:none}
+  *{animation:none !important; transition:none !important}
+}
+.deal-anim{animation:settle .28s ease both}
+@keyframes settle{from{opacity:0; transform:translateY(10px)} to{opacity:1; transform:translateY(0)}}
+</style>
+</head>
+<body>
+<header class="app">
+  <div class="wordmark">Outfitter<small>Your closet, dealt</small></div>
+</header>
+
+<div class="banner" id="storage-banner" role="alert"></div>
+
+<main>
+  <!-- ============ TODAY ============ -->
+  <section class="view" id="view-today" aria-label="Today"></section>
+  <!-- ============ CLOSET ============ -->
+  <section class="view" id="view-closet" aria-label="Closet"></section>
+  <!-- ============ SETTINGS ============ -->
+  <section class="view" id="view-settings" aria-label="Settings"></section>
+</main>
+
+<nav class="dock" aria-label="Main">
+  <div class="inner">
+    <button id="dock-add" class="add" type="button"></button>
+    <button id="dock-today" type="button"></button>
+    <button id="dock-closet" type="button"></button>
+    <button id="dock-settings" type="button"></button>
+  </div>
+</nav>
+
+<!-- Add flow overlay -->
+<div class="addflow" id="addflow" role="dialog" aria-modal="true" aria-label="Add a piece"></div>
+
+<!-- Generic sheet -->
+<div class="sheet-wrap" id="sheet-wrap">
+  <div class="sheet" id="sheet" role="dialog" aria-modal="true"></div>
+</div>
+
+<div class="toast" id="toast" role="status"><span class="msg" id="toast-msg"></span><button id="toast-action" type="button" class="hidden">Undo</button></div>
+
+<input type="file" id="file-photo" accept="image/*" class="hidden" aria-hidden="true" tabindex="-1">
+<input type="file" id="file-import" accept=".json,application/json" class="hidden" aria-hidden="true" tabindex="-1">
+
+<script>
+'use strict';
+/* =====================================================================
+   Outfitter — a single-file, on-device outfit dealer.
+   No network calls. No accounts. All data lives in IndexedDB on this
+   device (with an in-memory fallback if the browser refuses storage).
+   ===================================================================== */
+
+/* ---------- Icons (purpose-drawn inline SVG, rounded stroke) ---------- */
+const IC = {
+  plus: '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>',
+  shuffle: '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h4l10 10h4m0 0-3-3m3 3-3 3M3 17h4l2.5-2.5M13.5 9.5 17 7h4m0 0-3-3m3 3-3 3"/></svg>',
+  heart: '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5C7 16.5 3.5 13.3 3.5 9.6 3.5 7 5.4 5 7.8 5c1.7 0 3.3.9 4.2 2.3C12.9 5.9 14.5 5 16.2 5c2.4 0 4.3 2 4.3 4.6 0 3.7-3.5 6.9-8.5 10.9Z"/></svg>',
+  heartFill: '<svg class="ic fill" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5C7 16.5 3.5 13.3 3.5 9.6 3.5 7 5.4 5 7.8 5c1.7 0 3.3.9 4.2 2.3C12.9 5.9 14.5 5 16.2 5c2.4 0 4.3 2 4.3 4.6 0 3.7-3.5 6.9-8.5 10.9Z"/></svg>',
+  x: '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>',
+  check: '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="m4.5 12.5 5 5 10-11"/></svg>',
+  camera: '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h3l2-2.5h6L17 8h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z"/><circle cx="12" cy="14" r="3.4"/></svg>',
+  sun: '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.4M12 19.1v2.4M2.5 12h2.4M19.1 12h2.4M5 5l1.7 1.7M17.3 17.3 19 19M19 5l-1.7 1.7M6.7 17.3 5 19"/></svg>',
+  hanger: '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8.5a2.3 2.3 0 1 0-2.3-2.3"/><path d="M12 8.5V11L3.6 17.6a1.5 1.5 0 0 0 .9 2.7h15a1.5 1.5 0 0 0 .9-2.7L12 11"/></svg>',
+  sliders: '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h6M15 7h4M5 12h2M11 12h8M5 17h10M19 17h0"/><circle cx="13" cy="7" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="17" r="2"/></svg>',
+  download: '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0 4-4m-4 4-4-4M4 19h16"/></svg>',
+  upload: '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4m0 0 4 4m-4-4L8 8M4 19h16"/></svg>',
+  eyeOff: '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4l16 16M9.9 5.9A9.8 9.8 0 0 1 12 5.5c5 0 8.5 4.5 9.5 6.5a13.6 13.6 0 0 1-3 3.7M6 8A13.4 13.4 0 0 0 2.5 12C3.5 14 7 18.5 12 18.5c1.2 0 2.3-.2 3.3-.6"/></svg>',
+  undo: '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 6 5 9.5 8.5 13M5 9.5h9a5 5 0 0 1 0 10h-3"/></svg>'
+};
+
+/* ---------- Taxonomy (closed enums from the fit-system pass, nothing else) ---------- */
+const CATEGORIES = ['top', 'bottom', 'shoes', 'layer'];
+const CAT_LABEL = { top: 'Top', bottom: 'Bottoms', shoes: 'Shoes', layer: 'Layer' };
+const SLOT_LABEL = { top: 'Top', bottom: 'Bottoms', shoes: 'Shoes', layer: 'Layer' };
+
+const KINDS = {
+  top:    [ ['polo','Golf polo'], ['structured','Dress polo'], ['button','Button-down'], ['henley','Henley'], ['tee','Tee'], ['hoodie','Hoodie'] ],
+  bottom: [ ['performance-pant','Performance pant'], ['chino','Chino'], ['jean','Jean'], ['jogger','Jogger'], ['short','Short'], ['athletic-short','Gym short'] ],
+  shoes:  [ ['wingtip-hybrid','Wingtip hybrid'], ['loafer','Loafer'], ['casual-shoe','Casual leather'], ['boot','Boot'], ['sneaker-clean','Clean sneaker'], ['sneaker-athletic','Trainer'] ],
+  layer:  [ ['quarter-zip','Quarter-zip'], ['v-neck','V-neck sweater'], ['vest','Vest'], ['blazer','Blazer'], ['crew','Crew sweater'], ['jacket','Jacket'] ]
+};
+const KIND_LABEL = {};
+for (const c of CATEGORIES) for (const [v, l] of KINDS[c]) KIND_LABEL[v] = l;
+
+/* 11 color families; group + darkness rank drive all pairing arithmetic. */
+const COLOR_META = {
+  'white':     { label: 'White',      group: 'LIGHT',   rank: 1 },
+  'light-blue':{ label: 'Light blue', group: 'LIGHT',   rank: 2 },
+  'stone':     { label: 'Stone / khaki', group: 'EARTH', rank: 2 },
+  'grey':      { label: 'Grey',       group: 'NEUTRAL', rank: 3 },
+  'olive':     { label: 'Olive',      group: 'EARTH',   rank: 3 },
+  'brown':     { label: 'Brown / tan', group: 'EARTH',  rank: 3 },
+  'denim':     { label: 'Denim',      group: 'BASE',    rank: 4 },
+  'burgundy':  { label: 'Burgundy',   group: 'ACCENT',  rank: 4 },
+  'navy':      { label: 'Navy',       group: 'BASE',    rank: 5 },
+  'charcoal':  { label: 'Charcoal',   group: 'BASE',    rank: 5 },
+  'black':     { label: 'Black',      group: 'BASE',    rank: 5 }
+};
+const COLOR_ORDER = ['white','light-blue','stone','grey','olive','brown','denim','burgundy','navy','charcoal','black'];
+
+const OCCASIONS = ['work', 'dressed', 'weekend', 'date'];
+const OCC_LABEL = { work: 'Work', dressed: 'Dressed-up', weekend: 'Weekend', date: 'Date night' };
+
+/* Kind x occasion eligibility matrix. 'P' preferred, 'A' allowed, '-' not eligible.
+   Tags can narrow a piece out of a lane; the matrix cannot be overridden. */
+const MATRIX = {
+  top: {
+    'polo':       { work:'P', dressed:'-', weekend:'A', date:'-' },
+    'structured': { work:'A', dressed:'P', weekend:'-', date:'P' },
+    'button':     { work:'P', dressed:'P', weekend:'-', date:'P' },
+    'henley':     { work:'-', dressed:'-', weekend:'P', date:'A' },
+    'tee':        { work:'-', dressed:'-', weekend:'P', date:'-' },
+    'hoodie':     { work:'-', dressed:'-', weekend:'P', date:'-' }
+  },
+  bottom: {
+    'performance-pant': { work:'P', dressed:'P', weekend:'A', date:'P' },
+    'chino':            { work:'P', dressed:'A', weekend:'A', date:'A' },
+    'jean':             { work:'-', dressed:'-', weekend:'P', date:'A' },
+    'jogger':           { work:'-', dressed:'-', weekend:'P', date:'-' },
+    'short':            { work:'-', dressed:'-', weekend:'P', date:'-' },
+    'athletic-short':   { work:'-', dressed:'-', weekend:'A', date:'-' }
+  },
+  shoes: {
+    'wingtip-hybrid':  { work:'P', dressed:'P', weekend:'A', date:'P' },
+    'loafer':          { work:'A', dressed:'P', weekend:'A', date:'P' },
+    'casual-shoe':     { work:'A', dressed:'A', weekend:'P', date:'A' },
+    'boot':            { work:'A', dressed:'A', weekend:'-', date:'A' },
+    'sneaker-clean':   { work:'-', dressed:'-', weekend:'P', date:'-' },
+    'sneaker-athletic':{ work:'-', dressed:'-', weekend:'P', date:'-' }
+  },
+  layer: {
+    'quarter-zip': { work:'P', dressed:'-', weekend:'A', date:'A' },
+    'v-neck':      { work:'A', dressed:'P', weekend:'-', date:'P' },
+    'vest':        { work:'A', dressed:'A', weekend:'P', date:'P' },
+    'blazer':      { work:'-', dressed:'P', weekend:'-', date:'P' },
+    'crew':        { work:'A', dressed:'-', weekend:'P', date:'-' },
+    'jacket':      { work:'-', dressed:'-', weekend:'P', date:'-' }
+  }
+};
+function matrixAllows(item, occasion) {
+  const row = MATRIX[item.category] && MATRIX[item.category][item.kind];
+  return !!row && row[occasion] !== '-';
+}
+function matrixPref(item, occasion) {
+  const row = MATRIX[item.category] && MATRIX[item.category][item.kind];
+  return row ? row[occasion] : '-';
+}
+function defaultOccasions(kind, category) {
+  const row = MATRIX[category] && MATRIX[category][kind];
+  if (!row) return ['weekend'];
+  return OCCASIONS.filter(o => row[o] !== '-');
+}
+/* Catalog defaults — the four defaults together deal a valid outfit. */
+const DEFAULTS = {
+  top:    { kind: 'polo',             colorFamily: 'navy' },
+  bottom: { kind: 'performance-pant', colorFamily: 'charcoal' },
+  shoes:  { kind: 'wingtip-hybrid',   colorFamily: 'brown' },
+  layer:  { kind: 'quarter-zip',      colorFamily: 'grey' }
+};
+const BRAND_PICKLIST = ['Bird Dogs','Mugsy','Peter Millar','lululemon','Public Rec','7 For All Mankind','Rhoback','Collars & Co','Cole Haan'];
+
+/* ---------- Small helpers ---------- */
+function uid() {
+  if (crypto && crypto.randomUUID) return crypto.randomUUID();
+  return 'id-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
+}
+function todayStr(d) {
+  d = d || new Date();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return d.getFullYear() + '-' + m + '-' + day;
+}
+function dateStrPlus(days) { const d = new Date(); d.setDate(d.getDate() + days); return todayStr(d); }
+function autoName(item) {
+  return COLOR_META[item.colorFamily].label.split(' /')[0] + ' ' + KIND_LABEL[item.kind].toLowerCase();
+}
+function itemName(item) { return item.name && item.name.trim() ? item.name : autoName(item); }
+async function sha256Hex(buffer) {
+  if (!(crypto && crypto.subtle && crypto.subtle.digest)) return null;
+  try {
+    const h = await crypto.subtle.digest('SHA-256', buffer);
+    return Array.from(new Uint8Array(h)).map(b => b.toString(16).padStart(2, '0')).join('');
+  } catch (e) { return null; }
+}
+function comboHashOf(itemIds) { return itemIds.slice().sort().join('|'); }
+
+/* =====================================================================
+   Storage layer — IndexedDB with an in-memory fallback behind the same
+   interface. Every save resolves only when its transaction completes.
+   ===================================================================== */
+const DB_NAME = 'outfitter-v1';
+let dbMode = 'idb'; // 'idb' | 'memory'
+let idb = null;
+const memStores = { items: new Map(), deals: new Map(), meta: new Map() };
+
+function idbOpen() {
+  return new Promise((resolve, reject) => {
+    if (!window.indexedDB) { reject(new Error('no-indexeddb')); return; }
+    const req = indexedDB.open(DB_NAME, 1);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      const items = db.createObjectStore('items', { keyPath: 'id' });
+      items.createIndex('by_category', 'category', { unique: false });
+      items.createIndex('by_createdAt', 'createdAt', { unique: false });
+      items.createIndex('by_contentHash', 'contentHash', { unique: false });
+      const deals = db.createObjectStore('deals', { keyPath: 'id' });
+      deals.createIndex('by_comboHash', 'comboHash', { unique: false });
+      deals.createIndex('by_dealtAt', 'dealtAt', { unique: false });
+      deals.createIndex('by_rating', 'rating', { unique: false });
+      db.createObjectStore('meta', { keyPath: 'key' });
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error || new Error('open-failed'));
+    req.onblocked = () => reject(new Error('open-blocked'));
+  });
+}
+function txDone(tx) {
+  return new Promise((resolve, reject) => {
+    tx.oncomplete = () => resolve();
+    tx.onabort = () => reject(tx.error || new Error('tx-aborted'));
+    tx.onerror = () => reject(tx.error || new Error('tx-error'));
+  });
+}
+function reqDone(req) {
+  return new Promise((resolve, reject) => {
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error || new Error('req-error'));
+  });
+}
+const store = {
+  async getAll(storeName) {
+    if (dbMode === 'memory') return Array.from(memStores[storeName].values());
+    const tx = idb.transaction(storeName, 'readonly');
+    return reqDone(tx.objectStore(storeName).getAll());
+  },
+  async put(storeName, record) {
+    if (dbMode === 'memory') { memStores[storeName].set(record.id || record.key, record); return; }
+    const tx = idb.transaction(storeName, 'readwrite');
+    tx.objectStore(storeName).put(record);
+    await txDone(tx);
+  },
+  async putMany(storeName, records) {
+    if (!records.length) return;
+    if (dbMode === 'memory') { for (const r of records) memStores[storeName].set(r.id || r.key, r); return; }
+    const tx = idb.transaction(storeName, 'readwrite');
+    const os = tx.objectStore(storeName);
+    for (const r of records) os.put(r);
+    await txDone(tx);
+  },
+  async del(storeName, key) {
+    if (dbMode === 'memory') { memStores[storeName].delete(key); return; }
+    const tx = idb.transaction(storeName, 'readwrite');
+    tx.objectStore(storeName).delete(key);
+    await txDone(tx);
+  },
+  async replaceAll(data) {
+    // One transaction across all stores: a restore is not half-visible.
+    if (dbMode === 'memory') {
+      memStores.items.clear(); memStores.deals.clear(); memStores.meta.clear();
+      for (const r of data.items) memStores.items.set(r.id, r);
+      for (const r of data.deals) memStores.deals.set(r.id, r);
+      for (const r of data.meta) memStores.meta.set(r.key, r);
+      return;
+    }
+    const tx = idb.transaction(['items', 'deals', 'meta'], 'readwrite');
+    tx.objectStore('items').clear(); tx.objectStore('deals').clear(); tx.objectStore('meta').clear();
+    for (const r of data.items) tx.objectStore('items').put(r);
+    for (const r of data.deals) tx.objectStore('deals').put(r);
+    for (const r of data.meta) tx.objectStore('meta').put(r);
+    await txDone(tx);
+  },
+  async getMeta(key) {
+    if (dbMode === 'memory') return memStores.meta.get(key) || null;
+    const tx = idb.transaction('meta', 'readonly');
+    return (await reqDone(tx.objectStore('meta').get(key))) || null;
+  },
+  async setMeta(key, fields) {
+    const existing = (await store.getMeta(key)) || { key };
+    await store.put('meta', Object.assign(existing, fields));
+  }
+};
+
+/* ---------- Persistence posture ---------- */
+const storageState = { persisted: null, lastExportAt: null, itemCountAtLastExport: 0, exportReminderDismissedAt: null };
+async function checkPersisted() {
+  if (navigator.storage && navigator.storage.persisted) {
+    try { return await navigator.storage.persisted(); } catch (e) { return false; }
+  }
+  return false;
+}
+async function requestPersistOnce() {
+  storageState.persisted = await checkPersisted();
+  if (!storageState.persisted && navigator.storage && navigator.storage.persist) {
+    try { storageState.persisted = await navigator.storage.persist(); } catch (e) { /* a denial is a state, not an error */ }
+  }
+  await store.setMeta('storage', { persisted: storageState.persisted, lastPersistCheckAt: Date.now() });
+}
+async function headroomLow() {
+  if (!(navigator.storage && navigator.storage.estimate)) return false;
+  try {
+    const est = await navigator.storage.estimate();
+    if (!est || !est.quota) return false;
+    return (est.usage / est.quota) > 0.8 || (est.quota - est.usage) < 10000000;
+  } catch (e) { return false; }
+}
+</script>
+
+<script>
+/* =====================================================================
+   The dealer — filter, then score. Hard bans first (they override tags,
+   preference, and Shuffle), eligibility second, scoring last.
+   Selection weights are declared constants, tested by the harness:
+     w = max(0.25, 1 + 0.5*loved - 0.4*rejected - wornPenalty)
+   ===================================================================== */
+function rankOf(item) { return COLOR_META[item.colorFamily].rank; }
+function groupOf(item) { return COLOR_META[item.colorFamily].group; }
+
+/* B1–B14 from the fit-system pass, checked on kind/colorFamily/group/rank only.
+   sel = { top, layer|null, bottom, shoes } of item records. */
+function isBanned(sel, occasion) {
+  const top = sel.top, bottom = sel.bottom, shoes = sel.shoes, layer = sel.layer || null;
+  // B1 — wingtip hybrids not with shorts; loafers not with gym shorts.
+  if (shoes.kind === 'wingtip-hybrid' && (bottom.kind === 'short' || bottom.kind === 'athletic-short')) return true;
+  if (shoes.kind === 'loafer' && bottom.kind === 'athletic-short') return true;
+  // B2 — black shoes not with stone/khaki bottoms.
+  if (shoes.colorFamily === 'black' && bottom.colorFamily === 'stone') return true;
+  // B8 — brown shoes not on black bottoms.
+  if (shoes.colorFamily === 'brown' && bottom.colorFamily === 'black') return true;
+  // B5 — uniform ban: same family top and bottom in the dark families.
+  if (top.colorFamily === bottom.colorFamily && ['navy','charcoal','black','olive'].includes(top.colorFamily)) return true;
+  // B9 — denim on denim without enough shade separation.
+  if (bottom.colorFamily === 'denim' && (top.colorFamily === 'denim' || top.colorFamily === 'light-blue') && Math.abs(rankOf(top) - rankOf(bottom)) < 2) return true;
+  // Same-rank BASE|BASE / EARTH|EARTH pairings in different families (navy + charcoal)
+  // are NOT banned: F8.1 makes adjacent darks a scoring matter, and scoreCombo's
+  // rd===0 contrast term already prices the flat read. Same-family darks are B5 above.
+  // B6 + B7 — accent cap: at most one ACCENT piece, and it does not share with EARTH (brown shoes excepted).
+  const pieces = [top, bottom, shoes]; if (layer) pieces.push(layer);
+  const accents = pieces.filter(p => groupOf(p) === 'ACCENT');
+  if (accents.length >= 2) return true;
+  if (accents.length === 1) {
+    for (const p of pieces) {
+      if (p !== accents[0] && groupOf(p) === 'EARTH' && !(p === shoes && p.colorFamily === 'brown')) return true;
+    }
+  }
+  // B11 — no shorts up the formality ladder.
+  if ((bottom.kind === 'short' || bottom.kind === 'athletic-short') && occasion !== 'weekend') return true;
+  // B12 — no athleisure tops/bottoms at Work or above.
+  if (occasion !== 'weekend') {
+    if (top.kind === 'tee' || top.kind === 'hoodie') return true;
+    if (bottom.kind === 'jogger' || bottom.kind === 'athletic-short') return true;
+  }
+  // B13 — no trainers at Work or above; no sneakers at Dressed-up or Date night.
+  if (shoes.kind === 'sneaker-athletic' && occasion !== 'weekend') return true;
+  if (shoes.kind === 'sneaker-clean' && (occasion === 'dressed' || occasion === 'date')) return true;
+  if (layer) {
+    // B3 — collar rule: over a polo, only quarter-zip, v-neck, or vest.
+    if ((top.kind === 'polo' || top.kind === 'structured') && !['quarter-zip','v-neck','vest'].includes(layer.kind)) return true;
+    // B14 — no layer over a hoodie except a vest; no zip jacket over a button-down.
+    if (top.kind === 'hoodie' && layer.kind !== 'vest') return true;
+    if (layer.kind === 'jacket' && top.kind === 'button') return true;
+    // Crew over a polo is out (B3's list extended, per the fit-system matrix notes).
+    if (layer.kind === 'crew' && (top.kind === 'polo' || top.kind === 'structured')) return true;
+    // A blazer sits only over a button-down (and over a henley on Date night only).
+    if (layer.kind === 'blazer' && !(top.kind === 'button' || (top.kind === 'henley' && occasion === 'date'))) return true;
+    // B10 — a layer does not match the top's family.
+    if (layer.colorFamily === top.colorFamily) return true;
+    // B4 — vest contrast: different family and one rank step away, no more than two.
+    if (layer.kind === 'vest') {
+      const d = Math.abs(rankOf(layer) - rankOf(top));
+      if (d < 1 || d > 2) return true;
+    }
+  }
+  return false;
+}
+
+/* Group-skeleton scoring (fit-system Step 3), returned as a factor. */
+function skeletonFactor(top, bottom) {
+  const g = groupOf(top) + '|' + groupOf(bottom);
+  switch (g) {
+    case 'LIGHT|BASE': case 'BASE|EARTH': return 1.6;
+    case 'LIGHT|EARTH': case 'NEUTRAL|BASE': case 'BASE|NEUTRAL': case 'ACCENT|BASE': return 1.3;
+    case 'BASE|BASE': case 'NEUTRAL|EARTH': case 'EARTH|NEUTRAL': case 'LIGHT|NEUTRAL': case 'NEUTRAL|LIGHT': return 1.0;
+    case 'EARTH|EARTH': return 0.7;
+    default: return 0.85;
+  }
+}
+function scoreCombo(sel, occasion, scores) {
+  let s = skeletonFactor(sel.top, sel.bottom);
+  const rd = Math.abs(rankOf(sel.top) - rankOf(sel.bottom));
+  if (rd >= 2) s *= 1.15; else if (rd === 0) s *= 0.8;
+  // Grey separating two BASE pieces earns a small bonus.
+  if (groupOf(sel.top) === 'BASE' && groupOf(sel.bottom) === 'BASE') {
+    const all = [sel.top, sel.bottom, sel.shoes]; if (sel.layer) all.push(sel.layer);
+    if (all.some(p => p.colorFamily === 'grey')) s *= 1.15;
+  }
+  // Preference tilt: derived loved minus rejected appearances, summed.
+  let pref = 0;
+  for (const p of [sel.top, sel.bottom, sel.shoes, sel.layer]) {
+    if (!p) continue;
+    const sc = scores.get(p.id);
+    if (sc) pref += (sc.loved - sc.rejected);
+  }
+  pref = Math.max(-2, Math.min(6, pref));
+  s *= (1 + 0.15 * pref);
+  // Matrix preference: preferred kinds lean the deal their way.
+  let mp = 0;
+  for (const p of [sel.top, sel.bottom, sel.shoes, sel.layer]) {
+    if (p && matrixPref(p, occasion) === 'P') mp += 1;
+  }
+  s *= (1 + 0.06 * mp);
+  if (occasion === 'date') {
+    const all = [sel.top, sel.bottom, sel.shoes]; if (sel.layer) all.push(sel.layer);
+    if (all.some(p => groupOf(p) === 'ACCENT')) s *= 1.25;            // D2 — burgundy earns its place on Date night
+    if (sel.bottom.colorFamily === 'black') s *= 1.15;                 // D3 — black bottoms lean Date
+    if (sel.layer && (sel.layer.kind === 'vest' || sel.layer.kind === 'blazer')) s *= 1.1; // D4
+  }
+  if ((occasion === 'dressed' || occasion === 'date') && !sel.layer) s *= 0.9; // layer preferred on the dressed lanes
+  return s;
+}
+
+/* Derived preference: loved appearances minus rejected appearances, from deals. */
+function deriveScores(deals) {
+  const map = new Map();
+  for (const d of deals) {
+    if (d.rating !== 'loved' && d.rating !== 'rejected') continue;
+    for (const id of d.itemIds) {
+      const cur = map.get(id) || { loved: 0, rejected: 0 };
+      cur[d.rating] += 1;
+      map.set(id, cur);
+    }
+  }
+  return map;
+}
+function rejectedComboHashes(deals) {
+  const set = new Set();
+  for (const d of deals) if (d.rating === 'rejected') set.add(d.comboHash);
+  return set;
+}
+function pieceWeight(item, scores, now) {
+  const sc = scores.get(item.id) || { loved: 0, rejected: 0 };
+  let wp = 0;
+  if (item.lastWornAt) {
+    const days = (now - item.lastWornAt) / 86400000;
+    if (days < 1.5) wp = 0.5; else if (days < 2.5) wp = 0.3; else if (days < 3.5) wp = 0.15;
+  }
+  return Math.max(0.25, 1 + 0.5 * sc.loved - 0.4 * sc.rejected - wp);
+}
+function weightedPick(candidates, weightFn) {
+  let total = 0;
+  const weights = candidates.map(c => { const w = Math.max(0.01, weightFn(c)); total += w; return w; });
+  let r = Math.random() * total;
+  for (let i = 0; i < candidates.length; i++) { r -= weights[i]; if (r <= 0) return candidates[i]; }
+  return candidates[candidates.length - 1];
+}
+
+/* Slot candidates for an occasion, after every hard filter except bans. */
+function slotCandidates(items, occasion, slot) {
+  return items.filter(it =>
+    it.category === slot && !it.retired && it.available &&
+    it.occasions.includes(occasion) && matrixAllows(it, occasion) &&
+    (occasion === 'weekend' || !it.detailsGuessed)
+  );
+}
+function layerWanted(occasion, top, roll) {
+  if (occasion === 'work') return roll < 0.5;
+  if (occasion === 'dressed' || occasion === 'date') return true;
+  // Weekend: only over a henley, tee, or polo — and over a hoodie the vest case is handled by bans.
+  return top.kind === 'henley' || top.kind === 'tee' || top.kind === 'polo';
+}
+function selectionIds(sel) {
+  const ids = [sel.top.id, sel.bottom.id, sel.shoes.id];
+  if (sel.layer) ids.push(sel.layer.id);
+  return ids;
+}
+function selectionHash(sel) { return comboHashOf(selectionIds(sel)); }
+
+/* Exclusion context for one deal: rejected combos do not relax; the rest
+   relax in a declared order when the pool runs dry. */
+function buildExclusions(state, occasion, relaxLevel) {
+  const ex = { rejected: state.rejectedHashes, dealtToday: new Set(), crossOccasion: new Set(), lastDateWorn: null };
+  if (relaxLevel < 1) {
+    for (const d of state.deals) {
+      if (todayStr(new Date(d.dealtAt)) === todayStr()) ex.dealtToday.add(d.comboHash);
+    }
+  }
+  if (relaxLevel < 2 && state.todayPin && state.todayPin.deal && state.todayPin.deal.occasion !== occasion) {
+    ex.crossOccasion.add(state.todayPin.deal.comboHash);
+  }
+  if (relaxLevel < 3 && occasion === 'date') {
+    let latest = null;
+    for (const d of state.deals) {
+      if (d.occasion === 'date' && d.rating === 'worn' && (!latest || d.dealtAt > latest.dealtAt)) latest = d;
+    }
+    if (latest) ex.lastDateWorn = latest.comboHash;
+  }
+  return ex;
+}
+function isExcluded(sel, occasion, ex) {
+  const h = selectionHash(sel);
+  if (ex.rejected.has(h)) return true;
+  if (ex.dealtToday.has(h)) return true;
+  if (ex.crossOccasion.has(h)) return true;
+  if (ex.lastDateWorn && ex.lastDateWorn === h) return true;
+  return false;
+}
+
+function dealOnce(state, occasion, ex) {
+  const items = state.items;
+  const tops = slotCandidates(items, occasion, 'top');
+  const bottoms = slotCandidates(items, occasion, 'bottom');
+  const shoesAll = slotCandidates(items, occasion, 'shoes');
+  const layersAll = slotCandidates(items, occasion, 'layer');
+  if (!tops.length || !bottoms.length || !shoesAll.length) return null;
+  const now = Date.now();
+  const scores = state.scores;
+  const candidates = [];
+  for (let attempt = 0; attempt < 24; attempt++) {
+    const top = weightedPick(tops, it => pieceWeight(it, scores, now));
+    const bottom = weightedPick(bottoms, it => pieceWeight(it, scores, now));
+    const shoeOptions = shoesAll.filter(sh => !isBanned({ top, bottom, shoes: sh, layer: null }, occasion));
+    if (!shoeOptions.length) continue;
+    const shoes = weightedPick(shoeOptions, it => pieceWeight(it, scores, now));
+    let layer = null;
+    if (layerWanted(occasion, top, Math.random())) {
+      const layerOptions = layersAll.filter(l => !isBanned({ top, bottom, shoes, layer: l }, occasion));
+      if (layerOptions.length) layer = weightedPick(layerOptions, it => pieceWeight(it, scores, now));
+    }
+    const sel = { top, bottom, shoes, layer };
+    if (isBanned(sel, occasion)) continue;
+    if (isExcluded(sel, occasion, ex)) continue;
+    candidates.push({ sel, score: scoreCombo(sel, occasion, scores) });
+  }
+  if (!candidates.length) return null;
+  // Variety floor: on a share of deals, draw uniformly from the valid candidates
+  // (all hard filters already applied). Preference weights steer the scored path,
+  // but a piece floored by rejections must still surface occasionally — suppressed
+  // but not zeroed — or a small closet dead-ends. (Pre-declared in the Q1 harness.)
+  if (candidates.length > 5 && Math.random() < 0.12) {
+    return candidates[Math.floor(Math.random() * candidates.length)].sel;
+  }
+  candidates.sort((a, b) => b.score - a.score);
+  const topPool = candidates.slice(0, Math.min(5, candidates.length));
+  return topPool[Math.floor(Math.random() * topPool.length)].sel;
+}
+
+/* Count valid, unbanned combinations (capped) — drives dead-end states,
+   the low-water warning, and the exactly-one case. */
+function countCombos(state, occasion, cap) {
+  cap = cap || 400;
+  const tops = slotCandidates(state.items, occasion, 'top');
+  const bottoms = slotCandidates(state.items, occasion, 'bottom');
+  const shoesAll = slotCandidates(state.items, occasion, 'shoes');
+  const layersAll = slotCandidates(state.items, occasion, 'layer');
+  let count = 0, onlyCombo = null;
+  const layerOptions = [null].concat(layersAll);
+  outer:
+  for (const top of tops) for (const bottom of bottoms) for (const shoes of shoesAll) {
+    // Cheap pre-check without a layer before trying layers.
+    let anyForTriple = false;
+    for (const layer of layerOptions) {
+      const sel = { top, bottom, shoes, layer };
+      if (isBanned(sel, occasion)) continue;
+      if (state.rejectedHashes.has(selectionHash(sel))) continue;
+      anyForTriple = true;
+      count++;
+      if (!onlyCombo) onlyCombo = sel;
+      if (count >= cap) break outer;
+    }
+    void anyForTriple;
+  }
+  return { count, onlyCombo: count === 1 ? onlyCombo : null, capped: count >= cap };
+}
+
+/* Full state of an occasion for the UI: what can be dealt, and if not, why. */
+function occasionState(state, occasion) {
+  const slots = {};
+  const missing = [];
+  for (const slot of ['top', 'bottom', 'shoes']) {
+    slots[slot] = slotCandidates(state.items, occasion, slot);
+    if (!slots[slot].length) missing.push(slot);
+  }
+  const guessedHeld = state.items.filter(it => !it.retired && it.available && it.detailsGuessed && it.occasions.includes(occasion) && matrixAllows(it, occasion)).length;
+  if (missing.length) return { kind: 'missing-slots', missing, guessedHeld };
+  const { count, onlyCombo } = countCombos(state, occasion, 4);
+  if (count === 0) {
+    // Distinguish "bans ate everything" from "rejections ate everything":
+    const rawCount = countCombosIgnoringRejections(state, occasion);
+    if (rawCount > 0) return { kind: 'all-rejected', guessedHeld };
+    return { kind: 'no-valid-combo', guessedHeld };
+  }
+  return { kind: 'ready', comboCount: count, onlyCombo, guessedHeld };
+}
+function countCombosIgnoringRejections(state, occasion) {
+  const saved = state.rejectedHashes;
+  state.rejectedHashes = new Set();
+  const { count } = countCombos(state, occasion, 4);
+  state.rejectedHashes = saved;
+  return count;
+}
+
+/* Deal an outfit for an occasion, honoring the relaxation order.
+   Returns { selection } or { state: occasionState }. */
+function dealOutfit(state, occasion) {
+  const st = occasionState(state, occasion);
+  if (st.kind === 'missing-slots' || st.kind === 'no-valid-combo' || st.kind === 'all-rejected') return { state: st };
+  for (let relax = 0; relax <= 3; relax++) {
+    const ex = buildExclusions(state, occasion, relax);
+    const sel = dealOnce(state, occasion, ex);
+    if (sel) return { selection: sel, onlyCombo: st.comboCount === 1 && relax === 0 };
+  }
+  return { state: { kind: 'all-rejected', guessedHeld: st.guessedHeld } };
+}
+
+/* Swap one slot of a dealt selection: ban-checked against the rest,
+   does not land on a rejected combination. */
+function swapSlot(state, occasion, sel, slot) {
+  const options = slotCandidates(state.items, occasion, slot).filter(it => it.id !== sel[slot].id);
+  const now = Date.now();
+  const viable = options.filter(it => {
+    const trial = Object.assign({}, sel, { [slot]: it });
+    return !isBanned(trial, occasion) && !state.rejectedHashes.has(selectionHash(trial));
+  });
+  if (!viable.length) return null;
+  const pick = weightedPick(viable, it => pieceWeight(it, state.scores, now));
+  return Object.assign({}, sel, { [slot]: pick });
+}
+</script>
+
+<script>
+/* =====================================================================
+   App state + UI. State is rebuilt from the stores after every write;
+   the stores are the single source of truth.
+   ===================================================================== */
+const state = {
+  items: [], deals: [], scores: new Map(), rejectedHashes: new Set(),
+  byId: new Map(), todayPin: null, settings: { lastOccasion: 'work', theme: 'dark' },
+  view: 'today', current: null, /* { deal, sel } currently on the card */
+  shuffles: 0, morningDone: false, closetFilter: 'all', pickMode: false, pickSel: null,
+  pendingPhoto: null, pendingImport: null, lastRating: null
+};
+const LEARNING_SENTENCE = 'Deals weigh pieces from outfits you loved more heavily, and pieces from outfits you rejected less. A combination you reject is excluded unless you bring it back in Settings.';
+const PRIVACY_SENTENCE = 'Outfitter sends nothing anywhere. Your closet is stored in this browser, on this device.';
+
+/* ---------- Object URL registry (rendering only; URLs are session tokens) ---------- */
+const urlRegistry = new Map();
+function photoURL(item) {
+  if (!urlRegistry.has(item.id)) urlRegistry.set(item.id, URL.createObjectURL(item.photo));
+  return urlRegistry.get(item.id);
+}
+function releaseURL(id) {
+  if (urlRegistry.has(id)) { URL.revokeObjectURL(urlRegistry.get(id)); urlRegistry.delete(id); }
+}
+window.addEventListener('pagehide', () => { for (const u of urlRegistry.values()) URL.revokeObjectURL(u); });
+
+/* ---------- DOM helpers (user text goes through textContent, always) ---------- */
+function h(tag, cls, text) {
+  const el = document.createElement(tag);
+  if (cls) el.className = cls;
+  if (text !== undefined && text !== null) el.textContent = text;
+  return el;
+}
+function btn(label, cls, onClick, iconHTML) {
+  const b = h('button', 'btn ' + (cls || '')); b.type = 'button';
+  if (iconHTML) { const s = h('span'); s.innerHTML = iconHTML; b.appendChild(s); }
+  b.appendChild(h('span', null, label));
+  b.addEventListener('click', onClick);
+  return b;
+}
+function iconBtn(iconHTML, label, onClick, cls) {
+  const b = h('button', cls || ''); b.type = 'button'; b.setAttribute('aria-label', label); b.title = label;
+  const s = h('span'); s.innerHTML = iconHTML; b.appendChild(s);
+  b.addEventListener('click', onClick);
+  return b;
+}
+
+/* ---------- Toast with optional Undo ---------- */
+let toastTimer = null;
+function showToast(msg, actionLabel, actionFn, ms) {
+  const toast = document.getElementById('toast');
+  document.getElementById('toast-msg').textContent = msg;
+  const act = document.getElementById('toast-action');
+  if (actionLabel && actionFn) {
+    act.textContent = actionLabel; act.classList.remove('hidden');
+    act.onclick = () => { hideToast(); actionFn(); };
+  } else { act.classList.add('hidden'); act.onclick = null; }
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(hideToast, ms || 6000);
+}
+function hideToast() { document.getElementById('toast').classList.remove('show'); clearTimeout(toastTimer); }
+
+/* ---------- Sheets ---------- */
+function openSheet(buildFn) {
+  const wrap = document.getElementById('sheet-wrap');
+  const sheet = document.getElementById('sheet');
+  sheet.replaceChildren();
+  buildFn(sheet);
+  wrap.classList.add('show');
+}
+function closeSheet() { document.getElementById('sheet-wrap').classList.remove('show'); }
+document.getElementById('sheet-wrap').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) closeSheet();
+});
+function sheetHead(sheet, title, lede) {
+  sheet.appendChild(h('h2', null, title));
+  if (lede) sheet.appendChild(h('p', 'lede', lede));
+}
+function errorSheet(title, what, safe, actions) {
+  openSheet(sheet => {
+    sheetHead(sheet, title, null);
+    sheet.appendChild(h('p', 'lede', what));
+    if (safe) { const p = h('p', 'lede'); p.appendChild(h('strong', null, safe)); sheet.appendChild(p); }
+    for (const a of actions) sheet.appendChild(btn(a.label, a.cls || '', () => { if (!a.keepOpen) closeSheet(); a.fn(); }, a.icon));
+    sheet.appendChild(btn('Cancel', 'quiet', closeSheet));
+  });
+}
+
+/* ---------- Reload state from the stores ---------- */
+async function reloadState() {
+  state.items = await store.getAll('items');
+  state.items.sort((a, b) => b.createdAt - a.createdAt);
+  state.deals = await store.getAll('deals');
+  state.byId = new Map(state.items.map(i => [i.id, i]));
+  state.scores = deriveScores(state.deals);
+  state.rejectedHashes = rejectedComboHashes(state.deals);
+  const todayMeta = await store.getMeta('today');
+  state.todayPin = null;
+  if (todayMeta && todayMeta.dealId && (todayMeta.dateStr === todayStr() || todayMeta.dateStr === dateStrPlus(1))) {
+    const deal = state.deals.find(d => d.id === todayMeta.dealId);
+    if (deal && deal.itemIds.every(id => state.byId.has(id))) {
+      state.todayPin = { deal, dateStr: todayMeta.dateStr };
+    }
+  }
+  const settings = await store.getMeta('settings');
+  if (settings) state.settings = { lastOccasion: settings.lastOccasion || 'work', theme: settings.theme || 'dark' };
+  const sm = await store.getMeta('storage');
+  if (sm) {
+    storageState.persisted = sm.persisted;
+    storageState.lastExportAt = sm.lastExportAt || null;
+    storageState.itemCountAtLastExport = sm.itemCountAtLastExport || 0;
+    storageState.exportReminderDismissedAt = sm.exportReminderDismissedAt || null;
+  }
+}
+function selectionFromDeal(deal) {
+  const sel = { top: null, bottom: null, shoes: null, layer: null };
+  for (const id of deal.itemIds) {
+    const it = state.byId.get(id);
+    if (it) sel[it.category] = it;
+  }
+  return (sel.top && sel.bottom && sel.shoes) ? sel : null;
+}
+async function recordDeal(occasion, sel, rating) {
+  const deal = {
+    id: uid(), dealtAt: Date.now(), occasion,
+    itemIds: selectionIds(sel), comboHash: selectionHash(sel),
+    rating: rating || 'none', ratedAt: rating && rating !== 'none' ? Date.now() : null
+  };
+  await store.put('deals', deal);
+  state.deals.push(deal);
+  state.scores = deriveScores(state.deals);
+  state.rejectedHashes = rejectedComboHashes(state.deals);
+  return deal;
+}
+async function updateDealRating(deal, rating) {
+  deal.rating = rating;
+  deal.ratedAt = rating === 'none' ? null : Date.now();
+  await store.put('deals', deal);
+  state.scores = deriveScores(state.deals);
+  state.rejectedHashes = rejectedComboHashes(state.deals);
+}
+/* Wear confirm: the deal's rating and the pieces' wear counters move together. */
+store.wearDeal = async function (deal, itemsToUpdate) {
+  deal.rating = 'worn'; deal.ratedAt = Date.now();
+  if (dbMode === 'memory') {
+    memStores.deals.set(deal.id, deal);
+    for (const it of itemsToUpdate) memStores.items.set(it.id, it);
+    return;
+  }
+  const tx = idb.transaction(['deals', 'items'], 'readwrite');
+  tx.objectStore('deals').put(deal);
+  for (const it of itemsToUpdate) tx.objectStore('items').put(it);
+  await txDone(tx);
+  state.scores = deriveScores(state.deals);
+  state.rejectedHashes = rejectedComboHashes(state.deals);
+};
+
+/* ---------- View switching ---------- */
+function showView(name) {
+  state.view = name;
+  for (const v of ['today', 'closet', 'settings']) {
+    document.getElementById('view-' + v).classList.toggle('active', v === name);
+    document.getElementById('dock-' + v).toggleAttribute('aria-current', v === name);
+    if (v === name) document.getElementById('dock-' + v).setAttribute('aria-current', 'page');
+    else document.getElementById('dock-' + v).removeAttribute('aria-current');
+  }
+  render();
+}
+function render() {
+  if (state.view === 'today') renderToday();
+  else if (state.view === 'closet') renderCloset();
+  else renderSettings();
+}
+
+/* ================= TODAY ================= */
+function renderToday() {
+  const root = document.getElementById('view-today');
+  root.replaceChildren();
+  if (!state.items.length) { renderEmpty(root); return; }
+  if (state.morningDone && !state.todayPin) {
+    const d = h('div', 'done-note');
+    d.appendChild(h('h2', null, "Today's outfit is on."));
+    d.appendChild(h('p', null, 'That is the whole job done. If plans change, deal something else.'));
+    d.appendChild(btn('Deal another outfit', '', () => { state.morningDone = false; state.current = null; renderToday(); }, IC.shuffle));
+    root.appendChild(d);
+    return;
+  }
+  if (state.pickMode) { renderPickMyOwn(root); return; }
+  if (state.todayPin) { renderPinned(root); return; }
+  renderDealHome(root);
+}
+function renderEmpty(root) {
+  const d = h('div', 'empty');
+  d.appendChild(h('h1', null, 'Your closet is empty.'));
+  d.appendChild(h('p', null, 'Photograph your clothes once. After that, tap an occasion and get dressed.'));
+  d.appendChild(h('p', 'cap', 'One outfit needs just a top, bottoms, and shoes.'));
+  const b = btn('Add your first piece', 'primary', () => startAddFlow(), IC.camera);
+  b.style.marginTop = '22px';
+  d.appendChild(b);
+  const imp = btn('Restore from a backup file', 'quiet', () => document.getElementById('file-import').click(), IC.upload);
+  imp.style.marginTop = '8px';
+  d.appendChild(imp);
+  d.appendChild(h('p', 'cap', 'Had a closet here before? A backup file brings it back with your ratings intact.'));
+  root.appendChild(d);
+}
+function occasionChips(current, onPick) {
+  const row = h('div', 'occ-row');
+  for (const occ of OCCASIONS) {
+    const c = h('button', 'occ', OCC_LABEL[occ]); c.type = 'button';
+    c.setAttribute('aria-pressed', occ === current ? 'true' : 'false');
+    c.addEventListener('click', () => onPick(occ));
+    row.appendChild(c);
+  }
+  return row;
+}
+function renderPinned(root) {
+  const pin = state.todayPin;
+  const sel = selectionFromDeal(pin.deal);
+  if (!sel) { state.todayPin = null; renderDealHome(root); return; }
+  const when = pin.dateStr === todayStr() ? "Today's outfit" : "Tomorrow's outfit";
+  root.appendChild(h('h2', null, when));
+  root.appendChild(h('p', 'cap-line', 'You picked this one. It is waiting for you.'));
+  root.appendChild(outfitCard(sel, pin.deal, true));
+  const actions = h('div', 'morning-actions');
+  if (pin.dateStr === todayStr()) {
+    actions.appendChild(btn('Wearing it', 'primary', async () => {
+      await confirmWorn(pin.deal, sel);
+      await store.put('meta', { key: 'today', dealId: null, dateStr: todayStr() });
+      state.todayPin = null; state.morningDone = true;
+      await reloadState(); state.morningDone = true; renderToday();
+    }, IC.check));
+  }
+  actions.appendChild(btn('Shuffle instead', '', async () => {
+    await store.put('meta', { key: 'today', dealId: null, dateStr: todayStr() });
+    state.todayPin = null; state.current = null;
+    renderToday();
+  }, IC.shuffle));
+  root.appendChild(actions);
+}
+async function confirmWorn(deal, sel) {
+  const now = Date.now();
+  const itemsToUpdate = [];
+  for (const it of [sel.top, sel.bottom, sel.shoes, sel.layer]) {
+    if (!it) continue;
+    it.wornCount = (it.wornCount || 0) + 1;
+    it.lastWornAt = now;
+    itemsToUpdate.push(it);
+  }
+  deal.rating = 'worn';
+  await store.wearDeal(deal, itemsToUpdate);
+  showToast('Marked as worn. Have a good day.');
+}
+function renderDealHome(root) {
+  const occ = state.settings.lastOccasion || 'work';
+  root.appendChild(occasionChips(occ, async (picked) => {
+    state.settings.lastOccasion = picked;
+    await store.setMeta('settings', { lastOccasion: picked });
+    state.current = null; state.shuffles = 0;
+    renderToday();
+  }));
+  if (!state.current) {
+    const res = dealOutfit(state, occ);
+    if (res.selection) {
+      // Record asynchronously; the card renders from the selection now.
+      recordDeal(occ, res.selection).then(deal => {
+        state.current = { deal, sel: res.selection, onlyCombo: !!res.onlyCombo };
+        renderToday();
+      });
+      root.appendChild(h('p', 'cap-line', 'Dealing…'));
+      return;
+    }
+    root.appendChild(deadEndState(res.state, occ));
+    return;
+  }
+  const { deal, sel } = state.current;
+  root.appendChild(outfitCard(sel, deal, false));
+  const st = occasionState(state, occ);
+  if (st.kind === 'ready' && st.comboCount <= 3 && st.comboCount > 1) {
+    const note = h('p', 'cap-line', 'Only ' + st.comboCount + ' fresh ' + OCC_LABEL[occ] + ' combinations remain — bring one back in Settings, or add a piece.');
+    note.style.marginTop = '12px';
+    root.appendChild(note);
+  }
+  const actions = h('div', 'morning-actions');
+  const row = h('div', 'btn-row');
+  row.appendChild(btn('Wear this', 'primary', () => wearCurrent(), IC.check));
+  row.appendChild(btn('Shuffle', '', () => shuffleCurrent(), IC.shuffle));
+  actions.appendChild(row);
+  const pick = h('button', 'link-btn', state.shuffles >= 3 ? 'Want to pick your own today?' : 'Pick my own');
+  pick.type = 'button';
+  pick.addEventListener('click', () => { state.pickMode = true; state.pickSel = { top: null, bottom: null, shoes: null, layer: null }; renderToday(); });
+  actions.appendChild(pick);
+  root.appendChild(actions);
+}
+function deadEndState(st, occ) {
+  const d = h('div', 'deal-state');
+  const label = OCC_LABEL[occ];
+  if (st.kind === 'missing-slots') {
+    d.appendChild(h('h2', null, 'Not enough for ' + label + ' yet.'));
+    const names = st.missing.map(s => SLOT_LABEL[s].toLowerCase()).join(', ');
+    d.appendChild(h('p', null, 'Missing: ' + names + '. Add ' + (st.missing.length > 1 ? 'those pieces' : 'that piece') + ' and ' + label + ' outfits can be dealt.'));
+    if (st.guessedHeld > 0) d.appendChild(h('p', null, st.guessedHeld + (st.guessedHeld === 1 ? ' piece has' : ' pieces have') + ' guessed details and can only be dealt for Weekend until you check them in the Closet.'));
+    d.appendChild(btn('Add a piece', 'primary', () => startAddFlow(), IC.plus));
+  } else if (st.kind === 'no-valid-combo') {
+    d.appendChild(h('h2', null, 'These pieces do not combine for ' + label + '.'));
+    d.appendChild(h('p', null, 'Every combination breaks a pairing rule in your fit system. Adding one more piece — or checking the details on a piece in the Closet — usually opens it up.'));
+    if (st.guessedHeld > 0) d.appendChild(h('p', null, st.guessedHeld + (st.guessedHeld === 1 ? ' piece has' : ' pieces have') + ' guessed details and sits out of ' + label + ' until checked.'));
+    d.appendChild(btn('Add a piece', 'primary', () => startAddFlow(), IC.plus));
+    d.appendChild(btn('Open the Closet', 'quiet', () => showView('closet')));
+  } else if (st.kind === 'all-rejected') {
+    d.appendChild(h('h2', null, 'Every ' + label + ' combination is out.'));
+    d.appendChild(h('p', null, 'You have rejected all of them. Bring one back in Settings, or add a piece to make new combinations.'));
+    d.appendChild(btn('Bring one back', 'primary', () => showView('settings')));
+    d.appendChild(btn('Add a piece', 'quiet', () => startAddFlow(), IC.plus));
+  }
+  return d;
+}
+function outfitCard(sel, deal, pinned) {
+  const card = h('div', 'outfit deal-anim');
+  const order = ['layer', 'top', 'bottom', 'shoes'];
+  for (const slot of order) {
+    const item = sel[slot];
+    if (!item) continue;
+    const row = h('div', 'slot');
+    const img = h('img'); img.src = photoURL(item); img.alt = itemName(item);
+    row.appendChild(img);
+    row.appendChild(h('span', 'tag', SLOT_LABEL[slot]));
+    if (item.detailsGuessed) row.appendChild(h('span', 'guess', 'Details guessed'));
+    if (!pinned) {
+      row.setAttribute('role', 'button');
+      row.setAttribute('aria-label', 'Swap the ' + SLOT_LABEL[slot].toLowerCase() + ': ' + itemName(item));
+      row.addEventListener('click', () => swapCurrent(slot));
+    }
+    card.appendChild(row);
+  }
+  const rate = h('div', 'rate-row');
+  const love = h('button', deal.rating === 'loved' ? 'loved-on' : ''); love.type = 'button';
+  const ls = h('span'); ls.innerHTML = deal.rating === 'loved' ? IC.heartFill : IC.heart; love.appendChild(ls);
+  love.appendChild(h('span', null, 'Love it'));
+  love.setAttribute('aria-label', 'Love this outfit');
+  love.addEventListener('click', () => rateDeal(deal, 'loved'));
+  const hate = h('button', ''); hate.type = 'button';
+  const hs = h('span'); hs.innerHTML = IC.x; hate.appendChild(hs);
+  hate.appendChild(h('span', null, 'Not for me'));
+  hate.setAttribute('aria-label', 'Reject this combination');
+  hate.addEventListener('click', () => rateDeal(deal, 'rejected'));
+  rate.appendChild(love); rate.appendChild(hate);
+  card.appendChild(rate);
+  card.appendChild(h('div', 'card-note', 'Tap a piece to swap just that piece. Not for me takes this combination out — it stays out unless you bring it back in Settings.'));
+  return card;
+}
+async function dealAndShow(occ) {
+  const res = dealOutfit(state, occ);
+  if (!res.selection) { state.current = null; renderToday(); return; }
+  const deal = await recordDeal(occ, res.selection);
+  state.current = { deal, sel: res.selection, onlyCombo: !!res.onlyCombo };
+  renderToday();
+}
+async function shuffleCurrent() {
+  const occ = state.settings.lastOccasion;
+  if (state.current && state.current.onlyCombo) {
+    showToast('This is the only combination your closet makes for ' + OCC_LABEL[occ] + ' right now.');
+    return;
+  }
+  state.shuffles += 1;
+  await dealAndShow(occ);
+}
+async function swapCurrent(slot) {
+  if (!state.current) return;
+  const occ = state.settings.lastOccasion;
+  const next = swapSlot(state, occ, state.current.sel, slot);
+  if (!next) { showToast('No other ' + SLOT_LABEL[slot].toLowerCase() + ' pairs with this outfit.'); return; }
+  const deal = await recordDeal(occ, next);
+  state.current = { deal, sel: next, onlyCombo: false };
+  renderToday();
+}
+async function rateDeal(deal, rating) {
+  const prev = { rating: deal.rating, ratedAt: deal.ratedAt };
+  await updateDealRating(deal, rating);
+  state.lastRating = { dealId: deal.id, prev };
+  if (rating === 'loved') {
+    showToast('Loved. Its pieces will come up more.', 'Undo', undoLastRating);
+    renderToday();
+  } else {
+    showToast('Out. That combination stays out.', 'Undo', undoLastRating);
+    if (state.todayPin && state.todayPin.deal.id === deal.id) {
+      await store.put('meta', { key: 'today', dealId: null, dateStr: todayStr() });
+      state.todayPin = null;
+    }
+    if (state.current && state.current.deal.id === deal.id) state.current = null;
+    await dealAndShow(state.settings.lastOccasion);
+  }
+}
+async function undoLastRating() {
+  if (!state.lastRating) return;
+  const deal = state.deals.find(d => d.id === state.lastRating.dealId);
+  if (deal) {
+    deal.rating = state.lastRating.prev.rating; deal.ratedAt = state.lastRating.prev.ratedAt;
+    await store.put('deals', deal);
+    state.scores = deriveScores(state.deals);
+    state.rejectedHashes = rejectedComboHashes(state.deals);
+  }
+  state.lastRating = null;
+  if (state.view === 'today' && !state.current) { renderToday(); }
+  else if (state.view === 'settings') renderSettings();
+  else renderToday();
+}
+async function wearCurrent() {
+  if (!state.current) return;
+  const { deal, sel } = state.current;
+  const now = new Date();
+  const pinDate = now.getHours() >= 18 ? dateStrPlus(1) : todayStr();
+  await store.put('meta', { key: 'today', dealId: deal.id, dateStr: pinDate });
+  state.todayPin = { deal, dateStr: pinDate };
+  if (pinDate === todayStr()) { showToast("Pinned as today's outfit."); }
+  else { showToast("Pinned as tomorrow's outfit."); }
+  renderToday();
+}
+/* ---------- Pick my own ---------- */
+function renderPickMyOwn(root) {
+  const occ = state.settings.lastOccasion;
+  root.appendChild(h('h2', null, 'Pick your own'));
+  root.appendChild(h('p', 'cap-line', 'Your call, piece by piece. The usual pairing rules step aside here — you are the judge.'));
+  for (const slot of ['top', 'bottom', 'shoes', 'layer']) {
+    const wrap = h('div', 'pick-slot');
+    wrap.appendChild(h('h3', null, SLOT_LABEL[slot] + (slot === 'layer' ? ' (optional)' : '')));
+    const strip = h('div', 'pick-strip');
+    if (slot === 'layer') {
+      const none = h('button', 'pick-cell none-cell', 'No layer'); none.type = 'button';
+      none.setAttribute('aria-pressed', !state.pickSel.layer ? 'true' : 'false');
+      none.addEventListener('click', () => { state.pickSel.layer = null; renderToday(); });
+      strip.appendChild(none);
+    }
+    for (const item of state.items.filter(i => i.category === slot && !i.retired)) {
+      const cell = h('button', 'pick-cell'); cell.type = 'button';
+      const img = h('img'); img.src = photoURL(item); img.alt = itemName(item);
+      cell.appendChild(img);
+      cell.appendChild(h('div', 'cap', itemName(item)));
+      cell.setAttribute('aria-pressed', state.pickSel[slot] && state.pickSel[slot].id === item.id ? 'true' : 'false');
+      cell.addEventListener('click', () => { state.pickSel[slot] = item; renderToday(); });
+      strip.appendChild(cell);
+    }
+    wrap.appendChild(strip);
+    root.appendChild(wrap);
+  }
+  const row = h('div', 'btn-row');
+  const wear = btn('Wear this', 'primary', async () => {
+    const sel = state.pickSel;
+    const deal = await recordDeal(occ, sel);
+    state.pickMode = false;
+    await store.put('meta', { key: 'today', dealId: deal.id, dateStr: todayStr() });
+    state.todayPin = { deal, dateStr: todayStr() };
+    renderToday();
+  }, IC.check);
+  const ready = state.pickSel.top && state.pickSel.bottom && state.pickSel.shoes;
+  wear.disabled = !ready;
+  row.appendChild(wear);
+  row.appendChild(btn('Back to deals', '', () => { state.pickMode = false; renderToday(); }));
+  root.appendChild(row);
+}
+</script>
+
+<script>
+/* ================= CLOSET ================= */
+function renderCloset() {
+  const root = document.getElementById('view-closet');
+  root.replaceChildren();
+  const items = state.items;
+  root.appendChild(h('h2', null, 'Closet'));
+  // Capability line — what the closet can do, not a percentage of anything.
+  const dealable = OCCASIONS.filter(occ => ['top', 'bottom', 'shoes'].every(slot => slotCandidates(items, occ, slot).length > 0));
+  let cap = items.length + (items.length === 1 ? ' piece.' : ' pieces.');
+  if (items.length && dealable.length) cap += ' Enough for ' + dealable.map(o => OCC_LABEL[o]).join(', ') + ' outfits.';
+  else if (items.length) cap += ' Add a top, bottoms, and shoes to deal your first outfit.';
+  root.appendChild(h('p', 'cap-line', cap));
+  // Export reminder (Closet only — the morning screen stays clean).
+  if (exportReminderDue()) {
+    const strip = h('div', 'strip');
+    strip.appendChild(h('h3', null, 'Make a backup copy'));
+    strip.appendChild(h('p', null, storageState.persisted
+      ? 'A backup file is a second copy of this closet, kept by you.'
+      : 'Safari has not granted this closet permanent storage. A backup file means an afternoon of photographing is not your only copy.'));
+    const row = h('div', 'btn-row');
+    row.appendChild(btn('Export my closet', '', () => { showView('settings'); exportCloset(); }, IC.download));
+    row.appendChild(btn('Not now', 'quiet', async () => {
+      storageState.exportReminderDismissedAt = Date.now();
+      await store.setMeta('storage', { exportReminderDismissedAt: Date.now() });
+      renderCloset();
+    }));
+    strip.appendChild(row);
+    root.appendChild(strip);
+  }
+  // Needs-a-look strip for guessed details.
+  const guessed = items.filter(i => i.detailsGuessed && !i.retired);
+  if (guessed.length) {
+    const strip = h('div', 'strip');
+    strip.appendChild(h('h3', null, 'Needs a look — ' + guessed.length + (guessed.length === 1 ? ' piece' : ' pieces')));
+    strip.appendChild(h('p', null, 'These were saved with guessed details, so they deal on Weekend only. Check a piece to open it up to every occasion.'));
+    strip.appendChild(btn('Check the first one', '', () => openEditor(guessed[0])));
+    root.appendChild(strip);
+  }
+  const filters = [['all', 'All'], ['top', 'Tops'], ['bottom', 'Bottoms'], ['shoes', 'Shoes'], ['layer', 'Layers']];
+  const frow = h('div', 'filter-row');
+  for (const [v, label] of filters) {
+    const c = h('button', 'fchip', label); c.type = 'button';
+    c.setAttribute('aria-pressed', state.closetFilter === v ? 'true' : 'false');
+    c.addEventListener('click', () => { state.closetFilter = v; renderCloset(); });
+    frow.appendChild(c);
+  }
+  root.appendChild(frow);
+  const shown = items.filter(i => state.closetFilter === 'all' || i.category === state.closetFilter);
+  if (!shown.length) {
+    root.appendChild(h('p', 'cap-line', items.length ? 'Nothing in this category yet.' : 'Nothing here yet. Add your first piece to start.'));
+    return;
+  }
+  const grid = h('div', 'grid');
+  for (const item of shown) grid.appendChild(closetCell(item));
+  root.appendChild(grid);
+}
+function closetCell(item) {
+  const cell = h('div', 'cell' + (item.retired ? ' retired' : ''));
+  cell.setAttribute('role', 'button'); cell.setAttribute('tabindex', '0');
+  cell.setAttribute('aria-label', 'Edit ' + itemName(item));
+  const img = h('img'); img.src = photoURL(item); img.alt = itemName(item);
+  cell.appendChild(img);
+  if (item.detailsGuessed && !item.retired) cell.appendChild(h('span', 'badge', 'Details guessed'));
+  else if (!item.available && !item.retired) cell.appendChild(h('span', 'badge wash', 'In the wash'));
+  if (item.retired) cell.appendChild(h('span', 'badge', 'Retired'));
+  cell.appendChild(h('div', 'cap', itemName(item)));
+  cell.appendChild(h('div', 'sub', CAT_LABEL[item.category] + ' · ' + KIND_LABEL[item.kind]));
+  cell.addEventListener('click', () => openEditor(item));
+  cell.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openEditor(item); } });
+  const rb = iconBtn(IC.eyeOff, item.retired ? 'Bring back ' + itemName(item) : 'Retire ' + itemName(item), async (e) => {
+    e.stopPropagation();
+    item.retired = !item.retired; item.updatedAt = Date.now();
+    await store.put('items', item);
+    showToast(item.retired ? 'Retired. It sits out of every deal.' : 'Back in the closet.');
+    renderCloset();
+  }, 'retire-btn');
+  cell.appendChild(rb);
+  return cell;
+}
+function exportReminderDue() {
+  const n = state.items.length;
+  if (!n) return false;
+  if (storageState.exportReminderDismissedAt && Date.now() - storageState.exportReminderDismissedAt < 7 * 86400000) return false;
+  if (!storageState.lastExportAt && n >= 15) return true;
+  if (storageState.lastExportAt && n - storageState.itemCountAtLastExport >= 10) return true;
+  return false;
+}
+
+/* ---------- Item editor ---------- */
+function chipRow(values, current, multi, onPick) {
+  const wrap = h('div', 'chips');
+  for (const [v, label] of values) {
+    const c = h('button', 'chip', label); c.type = 'button';
+    const on = multi ? current.includes(v) : current === v;
+    c.setAttribute('aria-pressed', on ? 'true' : 'false');
+    c.addEventListener('click', () => onPick(v));
+    wrap.appendChild(c);
+  }
+  return wrap;
+}
+function fieldBlock(label, control) {
+  const f = h('div', 'field');
+  f.appendChild(h('span', null, label));
+  f.appendChild(control);
+  return f;
+}
+function openEditor(item) {
+  openSheet(sheet => {
+    const img = h('img', 'photo-large'); img.src = photoURL(item); img.alt = itemName(item);
+    sheet.appendChild(img);
+    sheetHead(sheet, itemName(item), item.detailsGuessed ? 'Details were guessed when this was saved. Check them and this piece opens up to every occasion.' : null);
+    const save = async () => { item.updatedAt = Date.now(); await store.put('items', item); };
+    const refresh = () => { openEditor(item); render(); };
+    // Name
+    const nameInput = h('input'); nameInput.type = 'text'; nameInput.value = item.name || ''; nameInput.placeholder = autoName(item);
+    nameInput.setAttribute('aria-label', 'Piece name');
+    nameInput.addEventListener('change', async () => { item.name = nameInput.value.trim(); await save(); refresh(); });
+    sheet.appendChild(fieldBlock('Name (optional)', nameInput));
+    // Brand
+    const brandSel = h('select'); brandSel.setAttribute('aria-label', 'Brand');
+    const opts = [''].concat(BRAND_PICKLIST);
+    if (item.brand && !opts.includes(item.brand)) opts.push(item.brand);
+    opts.push('__other__');
+    for (const o of opts) {
+      const op = h('option', null, o === '' ? 'No brand' : (o === '__other__' ? 'Another brand…' : o));
+      op.value = o; if (item.brand === o) op.selected = true;
+      brandSel.appendChild(op);
+    }
+    const brandText = h('input'); brandText.type = 'text'; brandText.placeholder = 'Brand name'; brandText.setAttribute('aria-label', 'Brand name');
+    brandText.classList.add('hidden');
+    brandSel.addEventListener('change', async () => {
+      if (brandSel.value === '__other__') { brandText.classList.remove('hidden'); brandText.focus(); }
+      else { item.brand = brandSel.value; await save(); }
+    });
+    brandText.addEventListener('change', async () => { item.brand = brandText.value.trim(); await save(); refresh(); });
+    const brandWrap = h('div'); brandWrap.appendChild(brandSel); brandWrap.appendChild(brandText);
+    sheet.appendChild(fieldBlock('Brand (optional)', brandWrap));
+    // Kind
+    sheet.appendChild(fieldBlock('Kind', chipRow(KINDS[item.category], item.kind, false, async (v) => {
+      item.kind = v; item.detailsGuessed = false;
+      if (!item.occasionsEdited) item.occasions = defaultOccasions(v, item.category);
+      await save(); refresh();
+    })));
+    if (item.category === 'top') sheet.appendChild(h('p', 'lede', 'Golf polo has a soft collar. Dress polo has a structured collar that holds its shape — that one chip is what separates Work from Dressed-up.'));
+    // Color
+    sheet.appendChild(fieldBlock('Color', chipRow(COLOR_ORDER.map(c => [c, COLOR_META[c].label]), item.colorFamily, false, async (v) => {
+      item.colorFamily = v; item.detailsGuessed = false; await save(); refresh();
+    })));
+    sheet.appendChild(h('p', 'lede', 'A patterned piece goes by its main background color.'));
+    // Occasions (can only narrow within the kind's lanes)
+    const occValues = OCCASIONS.filter(o => matrixAllows(item, o)).map(o => [o, OCC_LABEL[o]]);
+    sheet.appendChild(fieldBlock('Occasions', chipRow(occValues, item.occasions, true, async (v) => {
+      item.occasionsEdited = true;
+      item.occasions = item.occasions.includes(v) ? item.occasions.filter(o => o !== v) : item.occasions.concat(v);
+      await save(); refresh();
+    })));
+    if (item.detailsGuessed) {
+      sheet.appendChild(btn('These details look right', 'primary', async () => {
+        item.detailsGuessed = false; await save(); closeSheet(); render();
+        showToast('Checked. This piece can be dealt for every occasion its kind fits.');
+      }, IC.check));
+    }
+    // Wash + retire toggles
+    const washRow = h('div', 'toggle-row');
+    const wl = h('div'); wl.appendChild(h('div', 'lbl', 'In the wash')); wl.appendChild(h('div', 'hint', 'Sits out of deals until you switch this off.'));
+    washRow.appendChild(wl);
+    const washSw = h('button', 'switch'); washSw.type = 'button'; washSw.setAttribute('role', 'switch');
+    washSw.setAttribute('aria-checked', item.available ? 'false' : 'true'); washSw.setAttribute('aria-label', 'In the wash');
+    washSw.addEventListener('click', async () => { item.available = !item.available; await save(); refresh(); });
+    washRow.appendChild(washSw);
+    sheet.appendChild(washRow);
+    const retRow = h('div', 'toggle-row');
+    const rl = h('div'); rl.appendChild(h('div', 'lbl', 'Retired')); rl.appendChild(h('div', 'hint', 'Kept here, out of every deal. Bring it back any time.'));
+    retRow.appendChild(rl);
+    const retSw = h('button', 'switch'); retSw.type = 'button'; retSw.setAttribute('role', 'switch');
+    retSw.setAttribute('aria-checked', item.retired ? 'true' : 'false'); retSw.setAttribute('aria-label', 'Retired');
+    retSw.addEventListener('click', async () => { item.retired = !item.retired; await save(); refresh(); });
+    retRow.appendChild(retSw);
+    sheet.appendChild(retRow);
+    // Delete (two-tap confirm, inline)
+    const del = btn('Delete this piece', 'danger-outline', async () => {
+      if (del.dataset.armed) {
+        releaseURL(item.id);
+        await store.del('items', item.id);
+        closeSheet();
+        await reloadState(); render();
+        showToast('Deleted. Deals that used it are history now.');
+      } else {
+        del.dataset.armed = '1';
+        del.querySelector('span:last-child').textContent = 'Tap again to delete for good';
+      }
+    });
+    del.style.marginTop = '18px';
+    sheet.appendChild(del);
+    sheet.appendChild(btn('Close', 'quiet', closeSheet));
+  });
+}
+
+/* ================= ADD FLOW ================= */
+let addCategory = 'top';
+function startAddFlow(preselect) {
+  if (preselect) addCategory = preselect;
+  document.getElementById('file-photo').click();
+}
+document.getElementById('file-photo').addEventListener('change', async (e) => {
+  const file = e.target.files && e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  state.pendingFile = file;
+  try {
+    state.pendingPhoto = await processImage(file, 1200, 0.82, 500000);
+  } catch (err) {
+    if (err && err.code === 'too-large') {
+      errorSheet('That photo is very large', 'Even trimmed down, it came out bigger than this closet keeps.', 'Nothing was saved.', [
+        { label: 'Save it smaller', cls: 'primary', icon: IC.check, fn: async () => { state.pendingPhoto = await processImage(file, 800, 0.70, Infinity); showCategoryStep(); } },
+        { label: 'Export my closet instead', fn: () => { showView('settings'); exportCloset(); } }
+      ]);
+    } else {
+      errorSheet('That photo could not be read', 'Some photos arrive in a format this page cannot open.', 'Nothing was saved.', [
+        { label: 'Try a different photo', cls: 'primary', fn: () => startAddFlow() }
+      ]);
+    }
+    return;
+  }
+  // Duplicate guard: identical bytes almost always mean a double-add.
+  const hash = state.pendingPhoto.hash;
+  if (hash) {
+    const dupe = state.items.find(i => i.contentHash === hash);
+    if (dupe) {
+      errorSheet('Already in your closet', 'This exact photo is already saved as ' + itemName(dupe) + '.', 'Nothing was added.', [
+        { label: 'Add it anyway', fn: () => showCategoryStep() },
+        { label: 'Skip it', cls: 'primary', fn: () => { state.pendingPhoto = null; } }
+      ]);
+      return;
+    }
+  }
+  showCategoryStep();
+});
+function showCategoryStep() {
+  const flow = document.getElementById('addflow');
+  flow.replaceChildren();
+  const inner = h('div', 'inner');
+  inner.appendChild(h('h2', null, 'What is it?'));
+  inner.appendChild(h('p', 'lede', 'One tap saves it. Details can be checked right after — or later, in the Closet.'));
+  const img = h('img', 'photo-large'); img.src = state.pendingPhoto.url; img.alt = 'The piece you just photographed';
+  inner.appendChild(img);
+  const grid = h('div', 'cat-grid');
+  for (const cat of CATEGORIES) {
+    const b = h('button', 'cat-btn', CAT_LABEL[cat]); b.type = 'button';
+    b.addEventListener('click', () => saveNewPiece(cat));
+    grid.appendChild(b);
+  }
+  inner.appendChild(grid);
+  const cancel = btn('Cancel', 'quiet', () => { state.pendingPhoto = null; flow.classList.remove('show'); });
+  cancel.style.marginTop = '14px';
+  inner.appendChild(cancel);
+  flow.appendChild(inner);
+  flow.classList.add('show');
+}
+async function saveNewPiece(category) {
+  const p = state.pendingPhoto;
+  const d = DEFAULTS[category];
+  const item = {
+    id: uid(), createdAt: Date.now(), updatedAt: Date.now(),
+    photo: p.blob, photoMime: 'image/jpeg', photoBytes: p.blob.size, photoW: p.w, photoH: p.h,
+    contentHash: p.hash, category, kind: d.kind, colorFamily: d.colorFamily,
+    name: '', brand: '', occasions: defaultOccasions(d.kind, category),
+    occasionsEdited: false, detailsGuessed: true, available: true, retired: false,
+    wornCount: 0, lastWornAt: null
+  };
+  try {
+    await store.put('items', item);
+  } catch (err) {
+    if (err && err.name === 'QuotaExceededError') {
+      errorSheet('There is not room to save this piece', 'The browser has run out of space for this closet.', 'Your closet of ' + state.items.length + ' pieces is unchanged.', [
+        { label: 'Export my closet', cls: 'primary', icon: IC.download, fn: () => { document.getElementById('addflow').classList.remove('show'); showView('settings'); exportCloset(); } },
+        { label: 'Save it smaller (lower quality)', fn: async () => {
+          const smaller = await processImage(state.pendingFile, 800, 0.70, Infinity).catch(() => null);
+          if (smaller) { state.pendingPhoto = smaller; saveNewPiece(category); }
+        } }
+      ]);
+    } else {
+      errorSheet('That piece did not save', 'Something interrupted the save.', 'Your closet is unchanged.', [
+        { label: 'Try again', cls: 'primary', fn: () => saveNewPiece(category) }
+      ]);
+    }
+    return;
+  }
+  state.pendingPhoto = null;
+  await reloadState();
+  const saved = state.byId.get(item.id);
+  if (state.items.length === 1 && dbMode === 'idb') requestPersistOnce();
+  showSavedStep(saved || item, category);
+}
+function showSavedStep(item, category) {
+  const flow = document.getElementById('addflow');
+  flow.replaceChildren();
+  const inner = h('div', 'inner');
+  const note = h('div', 'saved-note');
+  const cs = h('span'); cs.innerHTML = IC.check; note.appendChild(cs);
+  note.appendChild(h('span', null, dbMode === 'memory' ? 'Added for this session only.' : 'Saved to your closet.'));
+  inner.appendChild(note);
+  inner.appendChild(h('p', 'lede', 'It is in as a ' + KIND_LABEL[item.kind].toLowerCase() + ', ' + COLOR_META[item.colorFamily].label.toLowerCase() + '. Wrong? Fix it with one tap while it is in your hand — or leave it; pieces with guessed details deal on Weekend only.'));
+  const img = h('img', 'photo-large'); img.src = photoURL(item); img.alt = itemName(item);
+  inner.appendChild(img);
+  const refreshSaved = () => { const fresh = state.byId.get(item.id); if (fresh) showSavedStep(fresh, category); };
+  inner.appendChild(fieldBlock('Kind', chipRow(KINDS[item.category], item.kind, false, async (v) => {
+    item.kind = v; item.detailsGuessed = false;
+    if (!item.occasionsEdited) item.occasions = defaultOccasions(v, item.category);
+    item.updatedAt = Date.now(); await store.put('items', item); await reloadState(); refreshSaved(); render();
+  })));
+  inner.appendChild(fieldBlock('Color', chipRow(COLOR_ORDER.map(c => [c, COLOR_META[c].label]), item.colorFamily, false, async (v) => {
+    item.colorFamily = v; item.detailsGuessed = false; item.updatedAt = Date.now();
+    await store.put('items', item); await reloadState(); refreshSaved(); render();
+  })));
+  if (item.detailsGuessed) {
+    inner.appendChild(btn('These details look right', '', async () => {
+      item.detailsGuessed = false; item.updatedAt = Date.now();
+      await store.put('items', item); await reloadState(); refreshSaved(); render();
+    }, IC.check));
+  }
+  const count = state.items.length;
+  inner.appendChild(h('p', 'cap-line', count + (count === 1 ? ' piece' : ' pieces') + ' in the closet.'));
+  inner.appendChild(btn('Add another piece', 'primary', () => { flow.classList.remove('show'); startAddFlow(category); }, IC.camera));
+  const done = btn('Done', 'quiet', () => { flow.classList.remove('show'); showView('closet'); });
+  done.style.marginTop = '8px';
+  inner.appendChild(done);
+  flow.appendChild(inner);
+  flow.classList.add('show');
+  render();
+}
+
+/* ---------- Image ingest: decode, orient, downscale, encode, hash ---------- */
+async function processImage(file, maxDim, quality, ceiling) {
+  let bmp = null;
+  try { bmp = await createImageBitmap(file, { imageOrientation: 'from-image' }); }
+  catch (e1) {
+    try { bmp = await createImageBitmap(file); } catch (e2) { bmp = null; }
+  }
+  let srcW, srcH, draw;
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  if (bmp) {
+    srcW = bmp.width; srcH = bmp.height;
+    draw = () => ctx.drawImage(bmp, 0, 0, canvas.width, canvas.height);
+  } else {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = url; }).catch(() => { URL.revokeObjectURL(url); throw new Error('decode-failed'); });
+    srcW = img.naturalWidth; srcH = img.naturalHeight;
+    draw = () => { ctx.drawImage(img, 0, 0, canvas.width, canvas.height); URL.revokeObjectURL(url); };
+  }
+  const scale = Math.min(1, maxDim / Math.max(srcW, srcH));
+  canvas.width = Math.round(srcW * scale);
+  canvas.height = Math.round(srcH * scale);
+  draw();
+  let blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', quality));
+  if (!blob) throw new Error('encode-failed');
+  if (blob.size > ceiling) {
+    // One hard-ceiling pass at 1000px / 0.70, then it is a decision, not a loop.
+    if (maxDim > 1000) {
+      const s2 = Math.min(1, 1000 / Math.max(srcW, srcH));
+      canvas.width = Math.round(srcW * s2); canvas.height = Math.round(srcH * s2);
+      draw();
+      blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.70));
+      if (!blob) throw new Error('encode-failed');
+    }
+    if (blob.size > ceiling) { const err = new Error('too-large'); err.code = 'too-large'; throw err; }
+  }
+  const buf = await blob.arrayBuffer();
+  const hash = await sha256Hex(buf);
+  return { blob, w: canvas.width, h: canvas.height, hash, url: URL.createObjectURL(blob) };
+}
+</script>
+
+<script>
+/* ================= SETTINGS ================= */
+function fmtBytes(n) {
+  if (n >= 1000000) return (n / 1000000).toFixed(1) + ' MB';
+  if (n >= 1000) return Math.round(n / 1000) + ' KB';
+  return n + ' bytes';
+}
+async function renderSettings() {
+  const root = document.getElementById('view-settings');
+  root.replaceChildren();
+  root.appendChild(h('h2', null, 'Settings'));
+  /* --- Storage --- */
+  const sg = h('div', 'set-group');
+  sg.appendChild(h('h3', null, 'Your closet, on this device'));
+  sg.appendChild(h('p', null, PRIVACY_SENTENCE));
+  const closetBytes = state.items.reduce((sum, i) => sum + (i.photoBytes || 0), 0);
+  sg.appendChild(h('p', 'plain', state.items.length + (state.items.length === 1 ? ' piece' : ' pieces') + ' · ' + fmtBytes(closetBytes) + ' of photos.'));
+  if (dbMode === 'memory') {
+    sg.appendChild(h('p', null, 'This browser is not keeping data between visits right now. Pieces you add last only until this page closes — but Export works from here too.'));
+  } else if (storageState.persisted === true) {
+    sg.appendChild(h('p', null, 'Safari is keeping this closet as permanent storage. A backup file is still a good second copy.'));
+  } else if (storageState.persisted === false) {
+    sg.appendChild(h('p', null, 'Safari has not granted this closet permanent storage. Export a backup so an afternoon of photographing is not your only copy.'));
+  }
+  if (await headroomLow()) {
+    sg.appendChild(h('p', null, 'This phone\u2019s browser storage is nearly full — outfits may stop saving. Export your closet, then free up space or remove pieces you no longer own.'));
+  }
+  if (storageState.lastExportAt) {
+    sg.appendChild(h('p', null, 'Last backup: ' + new Date(storageState.lastExportAt).toLocaleDateString() + '.'));
+  }
+  sg.appendChild(btn('Export my closet', '', () => exportCloset(), IC.download));
+  sg.appendChild(h('p', null, 'The backup file holds your closet photos and ratings. It is not encrypted — keep it somewhere private, like Files or iCloud Drive, not email. It holds the trimmed photos the app uses, not your camera originals.'));
+  sg.appendChild(btn('Import a backup', '', () => document.getElementById('file-import').click(), IC.upload));
+  root.appendChild(sg);
+  /* --- How dealing works --- */
+  const lg = h('div', 'set-group');
+  lg.appendChild(h('h3', null, 'How outfits are dealt'));
+  lg.appendChild(h('p', 'plain', LEARNING_SENTENCE));
+  lg.appendChild(h('p', null, 'Pairing follows your fit system: your shoe rules, your collar rule, and your capsule colors are hard rules the dealer cannot break. Pieces with guessed details deal on Weekend only, until you check them.'));
+  root.appendChild(lg);
+  /* --- Rejected combinations --- */
+  const rg = h('div', 'set-group');
+  rg.appendChild(h('h3', null, 'Rejected combinations'));
+  const rejected = [];
+  const seen = new Set();
+  for (const d of state.deals) {
+    if (d.rating === 'rejected' && !seen.has(d.comboHash)) { seen.add(d.comboHash); rejected.push(d); }
+  }
+  if (!rejected.length) {
+    rg.appendChild(h('p', null, 'None. Combinations you reject with Not for me will wait here, in case one was a mistake.'));
+  }
+  for (const d of rejected) {
+    const row = h('div', 'rej-row');
+    const names = d.itemIds.map(id => state.byId.has(id) ? itemName(state.byId.get(id)) : 'a piece you deleted').join(' · ');
+    const txt = h('div', 'txt');
+    txt.appendChild(document.createTextNode(names));
+    txt.appendChild(h('small', null, OCC_LABEL[d.occasion] || d.occasion));
+    row.appendChild(txt);
+    row.appendChild(btn('Bring it back', '', async () => {
+      for (const dd of state.deals) {
+        if (dd.comboHash === d.comboHash && dd.rating === 'rejected') {
+          dd.rating = 'none'; dd.ratedAt = null;
+          await store.put('deals', dd);
+        }
+      }
+      state.scores = deriveScores(state.deals);
+      state.rejectedHashes = rejectedComboHashes(state.deals);
+      showToast('Back in. That combination can be dealt again.');
+      renderSettings();
+    }));
+    rg.appendChild(row);
+  }
+  root.appendChild(rg);
+  /* --- Theme --- */
+  const tg = h('div', 'set-group');
+  tg.appendChild(h('h3', null, 'Theme'));
+  tg.appendChild(h('p', null, 'Dark is the default — mornings are dim. Match phone follows your phone\u2019s light and dark setting.'));
+  tg.appendChild(chipRow([['dark', 'Dark'], ['system', 'Match phone']], state.settings.theme, false, async (v) => {
+    state.settings.theme = v;
+    await store.setMeta('settings', { theme: v });
+    try { localStorage.setItem('outfitter-theme', v); } catch (e) {}
+    applyTheme(); renderSettings();
+  }));
+  root.appendChild(tg);
+  root.appendChild(h('p', 'cap-line', 'Outfitter · version 1.0 · ' + PRIVACY_SENTENCE));
+}
+function applyTheme() {
+  const t = state.settings.theme;
+  const light = t === 'system' && window.matchMedia && matchMedia('(prefers-color-scheme: light)').matches;
+  document.documentElement.setAttribute('data-theme', light ? 'light' : 'dark');
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', light ? '#f2ecdf' : '#10151d');
+}
+
+/* ---------- Export ---------- */
+function bytesToBase64(bytes) {
+  let bin = '';
+  const CHUNK = 32768;
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    bin += String.fromCharCode.apply(null, bytes.subarray(i, i + CHUNK));
+  }
+  return btoa(bin);
+}
+function base64ToBytes(b64) {
+  const bin = atob(b64);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i += 8192) {
+    const end = Math.min(i + 8192, bin.length);
+    for (let j = i; j < end; j++) out[j] = bin.charCodeAt(j);
+  }
+  return out;
+}
+async function exportCloset() {
+  try {
+    const items = [];
+    for (const it of state.items) {
+      const buf = await it.photo.arrayBuffer();
+      items.push({
+        id: it.id, createdAt: it.createdAt, updatedAt: it.updatedAt,
+        category: it.category, kind: it.kind, colorFamily: it.colorFamily,
+        name: it.name, brand: it.brand, occasions: it.occasions, occasionsEdited: !!it.occasionsEdited,
+        detailsGuessed: !!it.detailsGuessed, available: it.available !== false, retired: !!it.retired,
+        wornCount: it.wornCount || 0, lastWornAt: it.lastWornAt || null,
+        contentHash: it.contentHash || null, photoMime: 'image/jpeg',
+        photoBytes: it.photoBytes, photoW: it.photoW, photoH: it.photoH,
+        photoBase64: bytesToBase64(new Uint8Array(buf))
+      });
+    }
+    const todayMeta = await store.getMeta('today');
+    const data = {
+      app: 'outfitter', formatVersion: 1, exportedAt: new Date().toISOString(),
+      itemCount: items.length, items,
+      deals: state.deals.map(d => ({ id: d.id, dealtAt: d.dealtAt, occasion: d.occasion, itemIds: d.itemIds, comboHash: d.comboHash, rating: d.rating, ratedAt: d.ratedAt })),
+      meta: { today: todayMeta && todayMeta.dealId ? { dealId: todayMeta.dealId, dateStr: todayMeta.dateStr } : null }
+    };
+    const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = h('a'); a.href = url;
+    const now = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    a.download = 'outfitter-backup-' + now.getFullYear() + pad(now.getMonth() + 1) + pad(now.getDate()) + '-' + pad(now.getHours()) + pad(now.getMinutes()) + '.json';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    storageState.lastExportAt = Date.now();
+    storageState.itemCountAtLastExport = state.items.length;
+    await store.setMeta('storage', { lastExportAt: storageState.lastExportAt, itemCountAtLastExport: storageState.itemCountAtLastExport });
+    showToast('Backup downloaded. Keep it somewhere private.');
+    if (state.view === 'settings') renderSettings();
+  } catch (e) {
+    errorSheet('The backup did not finish', 'Something interrupted writing the file.', 'Your closet is unchanged.', [
+      { label: 'Try again', cls: 'primary', fn: () => exportCloset() }
+    ]);
+  }
+}
+
+/* ---------- Import ---------- */
+document.getElementById('file-import').addEventListener('change', async (e) => {
+  const file = e.target.files && e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  let parsed = null;
+  try { parsed = JSON.parse(await file.text()); } catch (err) { parsed = null; }
+  const fail = (msg) => errorSheet('That file is not a closet backup', msg, 'Nothing was changed.', [
+    { label: 'Choose a different file', cls: 'primary', fn: () => document.getElementById('file-import').click() }
+  ]);
+  if (!parsed || parsed.app !== 'outfitter') { fail('It does not look like an Outfitter backup.'); return; }
+  if (parsed.formatVersion !== 1) { fail('It was made by a different version of Outfitter.'); return; }
+  if (!Array.isArray(parsed.items) || !Array.isArray(parsed.deals)) { fail('It is missing pieces of the closet.'); return; }
+  // Validate everything before any write: one bad record fails the whole import.
+  const decodedItems = [];
+  for (const raw of parsed.items) {
+    try {
+      if (!raw.id || !CATEGORIES.includes(raw.category) || !raw.photoBase64) throw new Error('bad-item');
+      const bytes = base64ToBytes(raw.photoBase64);
+      if (bytes.length !== raw.photoBytes) throw new Error('size-mismatch');
+      decodedItems.push({
+        id: raw.id, createdAt: raw.createdAt || Date.now(), updatedAt: raw.updatedAt || Date.now(),
+        photo: new Blob([bytes], { type: 'image/jpeg' }), photoMime: 'image/jpeg',
+        photoBytes: raw.photoBytes, photoW: raw.photoW || 0, photoH: raw.photoH || 0,
+        contentHash: raw.contentHash || null, category: raw.category,
+        kind: KINDS[raw.category].some(([v]) => v === raw.kind) ? raw.kind : DEFAULTS[raw.category].kind,
+        colorFamily: COLOR_META[raw.colorFamily] ? raw.colorFamily : DEFAULTS[raw.category].colorFamily,
+        name: typeof raw.name === 'string' ? raw.name : '', brand: typeof raw.brand === 'string' ? raw.brand : '',
+        occasions: Array.isArray(raw.occasions) ? raw.occasions.filter(o => OCCASIONS.includes(o)) : defaultOccasions(raw.kind, raw.category),
+        occasionsEdited: !!raw.occasionsEdited, detailsGuessed: !!raw.detailsGuessed,
+        available: raw.available !== false, retired: !!raw.retired,
+        wornCount: raw.wornCount || 0, lastWornAt: raw.lastWornAt || null
+      });
+    } catch (err) { fail('One piece in the file could not be read, so none of it was imported.'); return; }
+  }
+  const decodedDeals = [];
+  for (const raw of parsed.deals) {
+    if (!raw.id || !Array.isArray(raw.itemIds) || !raw.comboHash) { fail('One outfit record in the file could not be read, so none of it was imported.'); return; }
+    decodedDeals.push({ id: raw.id, dealtAt: raw.dealtAt || Date.now(), occasion: raw.occasion, itemIds: raw.itemIds, comboHash: raw.comboHash, rating: ['loved', 'rejected', 'worn'].includes(raw.rating) ? raw.rating : 'none', ratedAt: raw.ratedAt || null });
+  }
+  state.pendingImport = { items: decodedItems, deals: decodedDeals, today: parsed.meta && parsed.meta.today ? parsed.meta.today : null, raw: parsed };
+  openSheet(sheet => {
+    const ratedCount = decodedDeals.filter(d => d.rating !== 'none').length;
+    sheetHead(sheet, 'Restore this closet?', 'This backup has ' + decodedItems.length + (decodedItems.length === 1 ? ' piece' : ' pieces') + ' and ' + ratedCount + (ratedCount === 1 ? ' rated outfit.' : ' rated outfits.'));
+    sheet.appendChild(btn('Replace this closet (' + state.items.length + ' pieces now)', 'primary', () => confirmReplaceImport()));
+    sheet.appendChild(h('p', 'lede', 'Replace removes what is here now and puts the backup in its place — pieces, ratings, and rejected combinations included.'));
+    sheet.appendChild(btn('Merge: add only pieces I do not have', '', () => applyMergeImport()));
+    sheet.appendChild(btn('Cancel', 'quiet', () => { state.pendingImport = null; closeSheet(); }));
+  });
+});
+function confirmReplaceImport() {
+  const p = state.pendingImport;
+  openSheet(sheet => {
+    sheetHead(sheet, 'Replace for good?', 'This removes the ' + state.items.length + ' pieces here now and restores the backup\u2019s ' + p.items.length + ' pieces. There is no undo for a replace.');
+    sheet.appendChild(btn('Yes, replace my closet', 'danger-outline', async () => {
+      closeSheet();
+      await applyReplaceImport();
+    }));
+    sheet.appendChild(btn('Cancel', 'quiet', closeSheet));
+  });
+}
+async function applyReplaceImport() {
+  const p = state.pendingImport;
+  state.pendingImport = null;
+  const storageMeta = await store.getMeta('storage');
+  const metaRecords = [];
+  if (storageMeta) metaRecords.push(storageMeta);
+  const settingsMeta = await store.getMeta('settings');
+  if (settingsMeta) metaRecords.push(settingsMeta);
+  if (p.today && p.deals.some(d => d.id === p.today.dealId)) metaRecords.push({ key: 'today', dealId: p.today.dealId, dateStr: p.today.dateStr });
+  else metaRecords.push({ key: 'today', dealId: null, dateStr: todayStr() });
+  try {
+    await store.replaceAll({ items: p.items, deals: p.deals, meta: metaRecords });
+  } catch (e) {
+    errorSheet('The restore did not finish', 'Something interrupted it.', 'Your closet is unchanged.', [{ label: 'OK', cls: 'primary', fn: () => {} }]);
+    return;
+  }
+  for (const id of Array.from(urlRegistry.keys())) releaseURL(id);
+  state.current = null; state.morningDone = false;
+  await reloadState();
+  showToast('Closet restored: ' + p.items.length + ' pieces, ratings included.');
+  showView('closet');
+}
+async function applyMergeImport() {
+  const p = state.pendingImport;
+  state.pendingImport = null;
+  closeSheet();
+  const existingIds = new Set(state.items.map(i => i.id));
+  const existingHashes = new Set(state.items.map(i => i.contentHash).filter(Boolean));
+  const idRemap = new Map();
+  const toAdd = [];
+  let skipped = 0;
+  for (const item of p.items) {
+    if (existingIds.has(item.id) || (item.contentHash && existingHashes.has(item.contentHash))) { skipped++; continue; }
+    toAdd.push(item);
+    existingIds.add(item.id);
+    if (item.contentHash) existingHashes.add(item.contentHash);
+  }
+  // An imported id can collide with a different photo in a later backup version;
+  // remap defensively if a to-add id is somehow taken by a skipped duplicate photo mismatch.
+  void idRemap;
+  const validIds = new Set(state.items.map(i => i.id).concat(toAdd.map(i => i.id)));
+  const existingDealKeys = new Set(state.deals.map(d => d.id + '|' + d.comboHash + '|' + d.dealtAt));
+  const existingDealIds = new Set(state.deals.map(d => d.id));
+  const dealsToAdd = [];
+  for (const d of p.deals) {
+    if (existingDealIds.has(d.id)) continue;
+    if (existingDealKeys.has(d.id + '|' + d.comboHash + '|' + d.dealtAt)) continue;
+    if (!d.itemIds.every(id => validIds.has(id))) continue;
+    dealsToAdd.push(d);
+  }
+  await store.putMany('items', toAdd);
+  await store.putMany('deals', dealsToAdd);
+  await reloadState();
+  showToast('Merge done: ' + toAdd.length + (toAdd.length === 1 ? ' piece' : ' pieces') + ' added, ' + skipped + ' already here, ' + dealsToAdd.length + (dealsToAdd.length === 1 ? ' rated outfit' : ' rated outfits') + ' added.');
+  showView('closet');
+}
+
+/* ================= DOCK + BOOT ================= */
+function dockButton(id, icon, label, fn) {
+  const b = document.getElementById(id);
+  const s = h('span'); s.innerHTML = icon; b.appendChild(s);
+  b.appendChild(h('span', null, label));
+  b.addEventListener('click', fn);
+}
+dockButton('dock-add', IC.plus, 'Add a piece', () => startAddFlow());
+dockButton('dock-today', IC.sun, 'Today', () => showView('today'));
+dockButton('dock-closet', IC.hanger, 'Closet', () => showView('closet'));
+dockButton('dock-settings', IC.sliders, 'Settings', () => showView('settings'));
+
+(async function boot() {
+  try {
+    idb = await idbOpen();
+    dbMode = 'idb';
+  } catch (e) {
+    dbMode = 'memory';
+    const banner = document.getElementById('storage-banner');
+    const strong = h('strong', null, 'Saving is off. ');
+    banner.appendChild(strong);
+    banner.appendChild(document.createTextNode('Outfitter can\u2019t save on this device right now \u2014 your closet will be gone when this page closes. '));
+    const retry = h('button', 'link-btn', 'Try again');
+    retry.type = 'button';
+    retry.addEventListener('click', () => location.reload());
+    banner.appendChild(retry);
+    banner.classList.add('show');
+  }
+  await reloadState();
+  if (dbMode === 'idb') {
+    storageState.persisted = await checkPersisted();
+  }
+  applyTheme();
+  showView('today');
+})();
+</script>
+</body>
+</html>
