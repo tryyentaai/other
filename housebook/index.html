@@ -1,0 +1,2220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0E1319" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#F4EFE6" media="(prefers-color-scheme: light)">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'none'; img-src 'self' blob: data:; media-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
+<title>HouseBook</title>
+<style>
+/* ===== tokens: primitives ===== */
+:root{
+  --ink:#0E1319; --ink-panel:#171F28; --ink-panel2:#1F2934; --ink-line:#2A3644;
+  --paper:#F4EFE6; --paper-panel:#FFFDF8; --paper-line:#D9D1BF;
+  --bone:#EDE8DC; --bone-muted:#9AA7B4;
+  --char:#1C232B; --char-muted:#5A6570;
+  --copper:#C98548; --copper-light:#A96A34; --copper-ink:#17110A;
+  --red:#E5534B; --red-t-dark:#F2827A; --red-t-light:#B3271E; --red-bg-dark:rgba(229,83,75,.13); --red-bg-light:rgba(179,39,30,.08);
+  --amber:#E8A33D; --amber-t-light:#96650F; --amber-bg-dark:rgba(232,163,61,.12); --amber-bg-light:rgba(185,122,30,.10);
+  --serif:Georgia,'Iowan Old Style','Times New Roman',serif;
+  --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+  --r-lg:16px; --r-md:12px; --r-sm:8px;
+  --tap:48px;
+}
+/* ===== tokens: semantic (dark is the led theme) ===== */
+:root{
+  --bg:var(--ink); --panel:var(--ink-panel); --panel2:var(--ink-panel2); --line:var(--ink-line);
+  --text:var(--bone); --muted:var(--bone-muted); --accent:var(--copper); --accent-ink:var(--copper-ink);
+  --red-t:var(--red-t-dark); --red-bg:var(--red-bg-dark); --amber-t:var(--amber); --amber-bg:var(--amber-bg-dark);
+}
+@media (prefers-color-scheme: light){
+  :root{
+    --bg:var(--paper); --panel:var(--paper-panel); --panel2:#FBF7EC; --line:var(--paper-line);
+    --text:var(--char); --muted:var(--char-muted); --accent:var(--copper-light);
+    --red-t:var(--red-t-light); --red-bg:var(--red-bg-light); --amber-t:var(--amber-t-light); --amber-bg:var(--amber-bg-light);
+  }
+}
+/* ===== base ===== */
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:16px;line-height:1.45;
+  padding-bottom:calc(76px + env(safe-area-inset-bottom))}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer;padding:0}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--accent);outline-offset:2px;border-radius:6px}
+h1,h2,h3{margin:0;font-weight:700}
+img{display:block;max-width:100%}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+.hidden{display:none!important}
+
+/* ===== header ===== */
+header.app{position:sticky;top:0;z-index:30;background:var(--bg);padding:14px 20px 10px;border-bottom:1px solid var(--line)}
+.wordmark{font-family:var(--serif);font-size:26px;letter-spacing:.2px;line-height:1}
+.wordmark .rule{display:block;height:3px;width:64px;background:var(--accent);border-radius:2px;margin-top:7px}
+.radar-note{font-size:13px;color:var(--muted);margin-top:9px}
+
+/* ===== layout ===== */
+main{padding:16px 16px 8px;max-width:760px;margin:0 auto}
+section.view{display:none}
+section.view.active{display:block}
+
+/* ===== radar ===== */
+.verdict{font-family:var(--serif);font-size:30px;line-height:1.2;margin:6px 2px 14px}
+.verdict .sub{display:block;font-family:var(--sans);font-size:16px;color:var(--muted);margin-top:6px}
+.rowcard{display:flex;gap:12px;align-items:stretch;background:var(--panel);border:1px solid var(--line);border-left:5px solid var(--line);
+  border-radius:var(--r-md);padding:12px 12px 12px 14px;margin:0 0 10px;width:100%;text-align:left}
+.rowcard.overdue{border-left-color:var(--red);background:linear-gradient(0deg,var(--red-bg),var(--red-bg)),var(--panel)}
+.rowcard.duesoon{border-left-color:var(--amber);background:linear-gradient(0deg,var(--amber-bg),var(--amber-bg)),var(--panel)}
+.rowcard .grow{flex:1;min-width:0}
+.rowcard .t{font-size:17px;font-weight:700;line-height:1.3}
+.rowcard .s{font-size:15px;color:var(--muted);margin-top:2px}
+.rowcard .when{font-size:15px;font-weight:700;margin-top:4px}
+.rowcard.overdue .when{color:var(--red-t)}
+.rowcard.duesoon .when{color:var(--amber-t)}
+.badge{display:inline-block;font-size:12px;font-weight:800;letter-spacing:.8px;padding:2px 7px;border-radius:20px;vertical-align:2px;margin-left:8px}
+.badge.safety{background:var(--red);color:#fff}
+.suggchip{display:inline-block;font-size:12px;font-weight:700;letter-spacing:.4px;padding:2px 7px;border-radius:20px;border:1px solid var(--amber);color:var(--amber-t);margin-left:8px;vertical-align:2px}
+.logbtn{flex:0 0 auto;align-self:center;min-height:var(--tap);padding:10px 16px;border-radius:var(--r-md);
+  background:var(--accent);color:var(--accent-ink);font-weight:800;font-size:16px}
+.logbtn:active{transform:scale(.97)}
+.summaryrow{display:block;width:100%;text-align:left;background:var(--panel);border:1px dashed var(--line);border-radius:var(--r-md);
+  padding:13px 14px;margin:0 0 10px;font-size:16px;font-weight:600}
+.lanelabel{font-size:13px;font-weight:700;letter-spacing:1.2px;color:var(--muted);margin:20px 2px 8px;text-transform:uppercase}
+.nextup{font-size:15px;color:var(--muted);margin:14px 2px 0}
+.emptybox{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);padding:26px 20px;text-align:left}
+.emptybox .big{font-family:var(--serif);font-size:23px;line-height:1.35;margin-bottom:10px}
+.emptybox p{margin:0 0 16px;color:var(--muted);font-size:16px}
+
+/* ===== buttons & chips ===== */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:var(--tap);padding:12px 20px;
+  border-radius:var(--r-md);background:var(--accent);color:var(--accent-ink);font-weight:800;font-size:16px;text-decoration:none}
+.btn.block{display:flex;width:100%}
+.btn.ghost{background:var(--panel);color:var(--text);border:1px solid var(--line);font-weight:700}
+.btn.danger{background:var(--panel);color:var(--red-t);border:1px solid var(--red);font-weight:700}
+.btn.small{min-height:44px;padding:8px 14px;font-size:15px}
+.btnrow{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+.chips{display:flex;flex-wrap:wrap;gap:9px;margin:8px 0 4px}
+.chip{min-height:var(--tap);padding:10px 15px;border-radius:24px;border:1.5px solid var(--line);background:var(--panel);
+  font-size:16px;font-weight:600;display:inline-flex;align-items:center;gap:7px}
+.chip[aria-pressed="true"]{border-color:var(--accent);background:var(--panel2);box-shadow:inset 0 0 0 1.5px var(--accent)}
+.chip .cond{font-size:12px;color:var(--muted);font-weight:700}
+.iconbtn{display:inline-flex;align-items:center;justify-content:center;width:var(--tap);height:var(--tap);border-radius:50%;background:var(--panel);border:1px solid var(--line)}
+svg.ic{width:24px;height:24px;flex:0 0 auto}
+svg.ic path,svg.ic circle,svg.ic line,svg.ic polyline,svg.ic rect{vector-effect:non-scaling-stroke}
+
+/* ===== systems list ===== */
+.syscard{display:flex;gap:13px;width:100%;text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:var(--r-md);
+  padding:12px;margin:0 0 10px;align-items:center}
+.syscard .thumb{width:62px;height:62px;border-radius:var(--r-sm);object-fit:cover;background:var(--panel2);flex:0 0 auto}
+.syscard .thumbph{width:62px;height:62px;border-radius:var(--r-sm);background:var(--panel2);flex:0 0 auto;display:flex;align-items:center;justify-content:center;color:var(--muted)}
+.syscard .t{font-size:17px;font-weight:700}
+.syscard .s{font-size:15px;color:var(--muted);margin-top:1px}
+.parkedcard{display:flex;width:100%;text-align:left;justify-content:space-between;align-items:center;background:transparent;
+  border:1px dashed var(--line);border-radius:var(--r-md);padding:13px 14px;margin:0 0 9px;font-size:16px}
+.draftcard{background:var(--panel2);border:1.5px solid var(--accent);border-radius:var(--r-md);padding:14px;margin:0 0 14px}
+.draftcard .t{font-weight:800;font-size:17px}
+
+/* ===== system detail ===== */
+.hero{border-radius:var(--r-lg);overflow:hidden;border:1px solid var(--line);margin-bottom:14px;background:var(--panel2)}
+.hero img{width:100%;max-height:340px;object-fit:cover}
+.photostrip{display:flex;gap:9px;overflow-x:auto;padding:4px 0 8px}
+.photostrip figure{margin:0;flex:0 0 auto;text-align:center}
+.photostrip img{width:96px;height:96px;object-fit:cover;border-radius:var(--r-sm);border:1px solid var(--line)}
+.photostrip figcaption{font-size:12px;color:var(--muted);margin-top:3px;max-width:96px}
+.photostrip .unreadable{width:96px;height:96px;border-radius:var(--r-sm);border:1px dashed var(--red);display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--red-t);padding:6px;text-align:center}
+.kv{display:flex;justify-content:space-between;gap:14px;padding:9px 2px;border-bottom:1px solid var(--line);font-size:16px}
+.kv .k{color:var(--muted);flex:0 0 42%}
+.kv .v{font-weight:600;text-align:right;word-break:break-word}
+.taskcard{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-md);padding:13px 14px;margin:0 0 10px}
+.taskcard .t{font-size:17px;font-weight:700}
+.taskcard .meta{font-size:15px;color:var(--muted);margin-top:3px}
+.taskcard .basis{font-size:14px;color:var(--muted);margin-top:7px;border-top:1px dashed var(--line);padding-top:7px}
+.taskcard .qual{font-size:15px;color:var(--amber-t);margin-top:6px}
+.logentry{padding:11px 2px;border-bottom:1px solid var(--line)}
+.logentry .d{font-weight:700;font-size:16px}
+.logentry .m{font-size:15px;color:var(--muted);margin-top:1px}
+.logentry .n{font-size:15px;margin-top:3px;white-space:pre-wrap;word-break:break-word}
+.checkrow{display:flex;align-items:center;gap:11px;padding:10px 2px;border-bottom:1px solid var(--line);font-size:16px;min-height:var(--tap)}
+.checkrow input{width:24px;height:24px;accent-color:var(--accent);flex:0 0 auto}
+
+/* ===== forms ===== */
+label.fl{display:block;font-size:14px;font-weight:700;letter-spacing:.4px;color:var(--muted);margin:16px 0 6px}
+input[type="text"],input[type="number"],input[type="date"],select,textarea{
+  width:100%;min-height:var(--tap);padding:11px 13px;border-radius:var(--r-sm);border:1.5px solid var(--line);
+  background:var(--panel);color:var(--text);font:inherit;font-size:16px}
+textarea{min-height:84px;resize:vertical}
+.seg{display:flex;gap:8px;flex-wrap:wrap}
+.seg .chip{flex:1;justify-content:center}
+.note{font-size:14px;color:var(--muted);margin-top:8px}
+.warnbox{border:1.5px solid var(--amber);border-radius:var(--r-md);padding:12px 14px;margin-top:12px;font-size:15px;background:var(--amber-bg)}
+.errbox{border:1.5px solid var(--red);border-radius:var(--r-md);padding:12px 14px;margin-top:12px;font-size:15px;background:var(--red-bg)}
+
+/* ===== sheet ===== */
+.scrim{position:fixed;inset:0;background:rgba(4,7,10,.62);z-index:50;display:none}
+.scrim.open{display:block}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:51;background:var(--bg);border-top:1.5px solid var(--line);
+  border-radius:20px 20px 0 0;max-height:92svh;overflow-y:auto;padding:20px 20px calc(20px + env(safe-area-inset-bottom));
+  transform:translateY(102%);transition:transform .22s ease}
+.sheet.open{transform:translateY(0)}
+.sheet h2{font-family:var(--serif);font-size:23px;margin-bottom:4px}
+.sheet .x{position:absolute;top:14px;right:14px}
+.cameraBig{display:flex;flex-direction:column;align-items:center;gap:9px;width:100%;padding:26px 16px;border-radius:var(--r-lg);
+  border:2px dashed var(--accent);background:var(--panel);font-weight:800;font-size:18px;margin:10px 0 4px}
+.cameraBig svg.ic{width:40px;height:40px}
+
+/* ===== banner / toast ===== */
+.banner{position:sticky;top:0;z-index:40;background:var(--red);color:#fff;font-size:15px;font-weight:600;
+  padding:11px 16px calc(11px + 0px);display:none}
+.banner.show{display:block}
+.toast{position:fixed;left:50%;transform:translateX(-50%) translateY(20px);bottom:calc(96px + env(safe-area-inset-bottom));
+  background:var(--panel2);color:var(--text);border:1.5px solid var(--accent);border-radius:24px;padding:12px 20px;
+  font-size:16px;font-weight:700;z-index:60;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;max-width:88vw;text-align:center}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ===== bottom nav ===== */
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--panel);border-top:1px solid var(--line);
+  display:flex;padding:8px 10px calc(8px + env(safe-area-inset-bottom))}
+nav.tabs button{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:12.5px;font-weight:700;
+  color:var(--muted);min-height:56px;justify-content:center;border-radius:var(--r-sm)}
+nav.tabs button[aria-selected="true"]{color:var(--text)}
+nav.tabs button .dot{width:22px;height:3px;border-radius:2px;background:transparent}
+nav.tabs button[aria-selected="true"] .dot{background:var(--accent)}
+nav.tabs button.addtab{color:var(--accent-ink)}
+nav.tabs button.addtab .addcircle{background:var(--accent);border-radius:50%;width:44px;height:44px;display:flex;align-items:center;justify-content:center;margin-top:-16px;border:3px solid var(--bg)}
+.prose{font-size:16px}
+.prose p{margin:0 0 12px}
+.prose strong{font-weight:800}
+@media (prefers-reduced-motion: reduce){
+  .sheet{transition:none}
+  .toast{transition:none}
+  *{animation:none!important}
+}
+</style>
+</head>
+<body>
+<div class="banner" id="fallbackBanner" role="alert"></div>
+<header class="app">
+  <div class="wordmark">HouseBook<span class="rule"></span></div>
+  <div class="radar-note" id="radarNote">Shows what's due when you open HouseBook. No reminders are sent.</div>
+</header>
+<main>
+  <section class="view" id="view-radar" aria-label="Radar"></section>
+  <section class="view" id="view-systems" aria-label="Systems"></section>
+  <section class="view" id="view-system" aria-label="System"></section>
+  <section class="view" id="view-settings" aria-label="Settings"></section>
+</main>
+<nav class="tabs" aria-label="Main">
+  <button id="tab-radar" aria-selected="true"><span data-icon="radar"></span>Radar<span class="dot"></span></button>
+  <button id="tab-systems" aria-selected="false"><span data-icon="house"></span>Systems<span class="dot"></span></button>
+  <button id="tab-add" class="addtab" aria-label="Add a system"><span class="addcircle"><span data-icon="plus"></span></span>Add</button>
+  <button id="tab-settings" aria-selected="false"><span data-icon="gear"></span>Settings<span class="dot"></span></button>
+</nav>
+<div class="scrim" id="scrim"></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true"></div>
+<div class="toast" id="toast" role="status"></div>
+<input type="file" id="filePhoto" accept="image/*" class="hidden">
+<input type="file" id="fileImport" accept=".json,application/json" class="hidden">
+<script>
+"use strict";
+/* ============================================================
+   HouseBook — a fully local house logbook. No network calls.
+   Script 1: icons, DOM utils, date math (the storage contract),
+   the store layer (IndexedDB + in-memory fallback), photos.
+   ============================================================ */
+var ICONS = {
+  radar:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><line x1="12" y1="12" x2="17.5" y2="6.5"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg>',
+  house:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11.5 12 4l8 7.5"/><path d="M6.5 10v9h11v-9"/><path d="M10 19v-5h4v5"/></svg>',
+  plus:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
+  gear:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.8v3M12 18.2v3M2.8 12h3M18.2 12h3M5.5 5.5l2.1 2.1M16.4 16.4l2.1 2.1M18.5 5.5l-2.1 2.1M7.6 16.4l-2.1 2.1"/></svg>',
+  camera:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-2.5h6L17 8h3v11H4z"/><circle cx="12" cy="13" r="3.4"/></svg>',
+  check:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4.5 12.5 9.5 17.5 19.5 6.5"/></svg>',
+  chevR:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 5 16 12 9 19"/></svg>',
+  back:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 5 8 12 15 19"/></svg>',
+  wrench:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 6.5a4 4 0 0 1 5.2-3.8L17 5.4l1.6 1.6 2.7-2.7a4 4 0 0 1-5.4 4.6L8.6 16.2a2 2 0 0 1-2.8-2.8l6.3-6.3a4 4 0 0 0 2.4-.6z" transform="scale(0.92) translate(1 1)"/></svg>',
+  download:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 11l5 5 5-5"/><path d="M4 20h16"/></svg>',
+  upload:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V4M7 8l5-5 5 5"/><path d="M4 20h16"/></svg>',
+  trash:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6.5 7l1 13h9l1-13"/></svg>',
+  photo:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M4 17.5 10 12l3.5 3L17 12l3 3.5"/></svg>'
+};
+function icon(name){ var s = document.createElement("span"); s.innerHTML = ICONS[name] || ""; return s.firstChild || s; }
+document.querySelectorAll("[data-icon]").forEach(function(n){ n.replaceWith(icon(n.getAttribute("data-icon"))); });
+
+/* ---------- DOM utils (text-safe: user data only ever via textContent) ---------- */
+function el(tag, cls, text){
+  var n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (text !== undefined && text !== null) n.textContent = String(text);
+  return n;
+}
+function clear(node){ while (node.firstChild) node.removeChild(node.firstChild); return node; }
+function uid(){
+  if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+  return "id-" + Date.now().toString(36) + "-" + Math.floor(Math.random()*1e9).toString(36);
+}
+var MONTHS_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+function monthYear(s){ var p = parseDate(s); return p ? (MONTHS_SHORT[p.m-1] + " " + p.y) : ""; }
+function prettyDate(s){ var p = parseDate(s); return p ? (MONTHS_SHORT[p.m-1] + " " + p.d + ", " + p.y) : ""; }
+function esc$(n){ return "$" + (n/100).toLocaleString("en-US",{minimumFractionDigits: (n%100===0?0:2), maximumFractionDigits:2}); }
+
+/* ---------- date math: pure YYYY-MM-DD integer arithmetic (storage contract) ---------- */
+function isLeapY(y){ return (y%4===0 && y%100!==0) || (y%400===0); }
+function daysInMonth(y,m){
+  if (m===2) return isLeapY(y) ? 29 : 28;
+  return (m===4||m===6||m===9||m===11) ? 30 : 31;
+}
+function parseDate(s){
+  if (typeof s !== "string") return null;
+  var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (!m) return null;
+  var y = +m[1], mo = +m[2], d = +m[3];
+  if (mo < 1 || mo > 12) return null;
+  if (d < 1 || d > daysInMonth(y, mo)) return null;
+  return { y:y, m:mo, d:d };
+}
+function isValidDate(s){ return parseDate(s) !== null; }
+function fmtDate(p){
+  function z(n,l){ n = String(n); while (n.length < (l||2)) n = "0" + n; return n; }
+  return z(p.y,4) + "-" + z(p.m) + "-" + z(p.d);
+}
+function todayStr(){
+  var n = new Date();
+  return fmtDate({ y:n.getFullYear(), m:n.getMonth()+1, d:n.getDate() });
+}
+function serialDay(y,m,d){
+  var yy = m <= 2 ? y-1 : y;
+  var era = Math.floor(yy/400), yoe = yy - era*400;
+  var mp = (m+9)%12, doy = Math.floor((153*mp+2)/5) + d - 1;
+  var doe = yoe*365 + Math.floor(yoe/4) - Math.floor(yoe/100) + doy;
+  return era*146097 + doe;
+}
+function dayDiff(a,b){
+  var pa = parseDate(a), pb = parseDate(b);
+  if (!pa || !pb) return null;
+  return serialDay(pb.y,pb.m,pb.d) - serialDay(pa.y,pa.m,pa.d);
+}
+function addMonthsClamped(s, n){
+  var p = parseDate(s); if (!p) return null;
+  var t = (p.y*12 + (p.m-1)) + n;
+  var y2 = Math.floor(t/12), m2 = (t % 12) + 1;
+  var d2 = Math.min(p.d, daysInMonth(y2, m2));
+  return fmtDate({ y:y2, m:m2, d:d2 });
+}
+function addDays(s, n){
+  var p = parseDate(s); if (!p) return null;
+  var sd = serialDay(p.y,p.m,p.d) + n;
+  /* civil-from-days (Hinnant) */
+  var era = Math.floor(sd/146097), doe = sd - era*146097;
+  var yoe = Math.floor((doe - Math.floor(doe/1460) + Math.floor(doe/36524) - Math.floor(doe/146096))/365);
+  var y = yoe + era*400, doy = doe - (365*yoe + Math.floor(yoe/4) - Math.floor(yoe/100));
+  var mp = Math.floor((5*doy+2)/153), d = doy - Math.floor((153*mp+2)/5) + 1, m = mp + (mp < 10 ? 3 : -9);
+  if (m <= 2) y += 1;
+  return fmtDate({ y:y, m:m, d:d });
+}
+
+/* ---------- store layer: IndexedDB with in-memory fallback ---------- */
+var DBNAME = "housebook-v1";
+var Store = {
+  mode: "idb",
+  db: null,
+  mem: null,
+  open: function(){
+    var self = this;
+    return new Promise(function(resolve){
+      if (!("indexedDB" in window)) { self._toMemory(); return resolve(false); }
+      var req;
+      try { req = indexedDB.open(DBNAME, 1); } catch(e){ self._toMemory(); return resolve(false); }
+      var settled = false;
+      req.onupgradeneeded = function(){
+        var db = req.result;
+        db.createObjectStore("meta", { keyPath:"key" });
+        db.createObjectStore("systems", { keyPath:"id" });
+        var t = db.createObjectStore("tasks", { keyPath:"id" }); t.createIndex("by_system","systemId");
+        var l = db.createObjectStore("logEntries", { keyPath:"id" });
+        l.createIndex("by_system","systemId"); l.createIndex("by_task","taskId");
+        var p = db.createObjectStore("photos", { keyPath:"id" }); p.createIndex("by_owner",["ownerType","ownerId"]);
+      };
+      req.onsuccess = function(){ self.db = req.result; settled = true; resolve(true); };
+      req.onerror = function(){ if (!settled){ self._toMemory(); resolve(false); } };
+      req.onblocked = function(){ /* F5: another tab holds an older db open; the open waits */ };
+      setTimeout(function(){ if (!settled && !self.db){ /* still waiting (blocked) — proceed in memory for this session */ self._toMemory(); resolve(false); } }, 4000);
+    });
+  },
+  _toMemory: function(){
+    this.mode = "memory"; this.db = null;
+    this.mem = { meta:new Map(), systems:new Map(), tasks:new Map(), logEntries:new Map(), photos:new Map() };
+  },
+  tx: function(stores, mode, fn){
+    var self = this;
+    if (this.mode === "memory"){
+      return Promise.resolve().then(function(){ return fn(self._memTx(stores)); });
+    }
+    return new Promise(function(resolve, reject){
+      var t;
+      try { t = self.db.transaction(stores, mode); }
+      catch(e){ return reject(e); }
+      var result, done = false;
+      var api = {
+        get: function(store, key){ return new Promise(function(res, rej){ var r = t.objectStore(store).get(key); r.onsuccess = function(){ res(r.result || null); }; r.onerror = function(){ rej(r.error); }; }); },
+        getAll: function(store){ return new Promise(function(res, rej){ var r = t.objectStore(store).getAll(); r.onsuccess = function(){ res(r.result || []); }; r.onerror = function(){ rej(r.error); }; }); },
+        getAllByIndex: function(store, idx, val){ return new Promise(function(res, rej){ var r = t.objectStore(store).index(idx).getAll(val); r.onsuccess = function(){ res(r.result || []); }; r.onerror = function(){ rej(r.error); }; }); },
+        put: function(store, rec){ return new Promise(function(res, rej){ var r = t.objectStore(store).put(rec); r.onsuccess = function(){ res(rec); }; r.onerror = function(){ rej(r.error); }; }); },
+        del: function(store, key){ return new Promise(function(res, rej){ var r = t.objectStore(store).delete(key); r.onsuccess = function(){ res(true); }; r.onerror = function(){ rej(r.error); }; }); },
+        clear: function(store){ return new Promise(function(res, rej){ var r = t.objectStore(store).clear(); r.onsuccess = function(){ res(true); }; r.onerror = function(){ rej(r.error); }; }); }
+      };
+      Promise.resolve().then(function(){ return fn(api); }).then(function(r){ result = r; });
+      t.oncomplete = function(){ done = true; resolve(result); };
+      t.onerror = function(){ if (!done) reject(t.error); };
+      t.onabort = function(){ if (!done) reject(t.error || new Error("transaction aborted")); };
+    });
+  },
+  _memTx: function(){
+    var mem = this.mem;
+    function clone(r){
+      if (r === undefined || r === null) return r;
+      var c = JSON.parse(JSON.stringify(r, function(k, v){ return (typeof Blob !== "undefined" && v instanceof Blob) ? undefined : v; }));
+      if (r.blob && typeof Blob !== "undefined" && r.blob instanceof Blob) c.blob = r.blob;
+      return c;
+    }
+    return {
+      get: function(store, key){ var v = mem[store].get(key); return Promise.resolve(v ? clone(v) : null); },
+      getAll: function(store){ return Promise.resolve(Array.from(mem[store].values()).map(clone)); },
+      getAllByIndex: function(store, idx, val){
+        var out = [];
+        mem[store].forEach(function(r){
+          if (idx === "by_owner"){ if (r.ownerType === val[0] && r.ownerId === val[1]) out.push(clone(r)); }
+          else if (r.systemId === val || r.taskId === val) out.push(clone(r));
+        });
+        return Promise.resolve(out);
+      },
+      put: function(store, rec){
+        var c = clone(rec);
+        /* memory mode cannot hold Blobs through JSON clone; keep a side reference */
+        if (store === "photos" && rec.blob) { c.blob = rec.blob; }
+        mem[store].set(store === "meta" ? rec.key : rec.id, c);
+        return Promise.resolve(rec);
+      },
+      del: function(store, key){ mem[store].delete(key); return Promise.resolve(true); },
+      clear: function(store){ mem[store].clear(); return Promise.resolve(true); }
+    };
+  },
+  read: function(store, key){ return this.tx([store], "readonly", function(api){ return key === undefined ? api.getAll(store) : api.get(store, key); }); },
+  readAll: function(store){ return this.tx([store], "readonly", function(api){ return api.getAll(store); }); },
+  readIndex: function(store, idx, val){ return this.tx([store], "readonly", function(api){ return api.getAllByIndex(store, idx, val); }); }
+};
+
+/* ---------- photo pipeline (storage pass Q5: two tiers by kind) ---------- */
+var TIER_A = { kinds:["nameplate","invoice","receipt"], edge:2048, q:0.85, ceiling:1500000, floorEdge:1792 }; /* ceiling is decimal MB — the "1.5 MB" claim is literal */
+var TIER_B = { kinds:["context","other"], edge:1600, q:0.82, ceiling:800000, floorEdge:1280 }; /* 800 KB decimal, same rule */
+function tierFor(kind){ return TIER_A.kinds.indexOf(kind) >= 0 ? TIER_A : TIER_B; }
+function loadImageFromFile(file){
+  return new Promise(function(resolve, reject){
+    var url = URL.createObjectURL(file);
+    var img = new Image();
+    img.onload = function(){ resolve({ img:img, url:url }); };
+    img.onerror = function(){ URL.revokeObjectURL(url); reject(new Error("image decode failed")); };
+    img.src = url;
+  });
+}
+function canvasBlob(canvas, q){
+  return new Promise(function(resolve){ canvas.toBlob(function(b){ resolve(b); }, "image/jpeg", q); });
+}
+async function processPhoto(file, kind){
+  var tier = tierFor(kind);
+  var loaded = await loadImageFromFile(file);
+  var img = loaded.img;
+  var srcW = img.naturalWidth, srcH = img.naturalHeight;
+  URL.revokeObjectURL(loaded.url);
+  if (!srcW || !srcH) throw new Error("image decode failed");
+  function render(edge, q){
+    var scale = Math.min(1, edge / Math.max(srcW, srcH));
+    var w = Math.max(1, Math.round(srcW*scale)), h = Math.max(1, Math.round(srcH*scale));
+    var c = document.createElement("canvas"); c.width = w; c.height = h;
+    var ctx = c.getContext("2d"); ctx.fillStyle = "#fff"; ctx.fillRect(0,0,w,h); ctx.drawImage(img, 0, 0, w, h);
+    return canvasBlob(c, q).then(function(b){ return { blob:b, width:w, height:h }; });
+  }
+  var edge = tier.edge, q = tier.q;
+  var out = await render(edge, q);
+  var qs = (tier === TIER_A ? [0.78, 0.70] : [0.75, 0.70]);
+  var qi = 0;
+  while (out.blob && out.blob.size > tier.ceiling && qi < qs.length){ q = qs[qi++]; out = await render(edge, q); }
+  while (out.blob && out.blob.size > tier.ceiling && edge > tier.floorEdge){
+    edge = Math.max(tier.floorEdge, Math.round(edge*0.875));
+    out = await render(edge, 0.70);
+  }
+  if (!out.blob) throw new Error("image encode failed");
+  if (out.blob.size > tier.ceiling){
+    var err = new Error("photo too large"); err.code = "PHOTO_TOO_LARGE"; throw err;
+  }
+  return { blob: out.blob, width: out.width, height: out.height, bytes: out.blob.size, mime: "image/jpeg" };
+}
+</script>
+
+<script>
+"use strict";
+/* ============================================================
+   Script 2: category data (maintenance-pro tables), the
+   derivation engine, and backup export/import validation.
+   ============================================================ */
+var CATEGORIES = ["HVAC","Water heater","Plumbing","Pool equipment","Kitchen","Laundry","Safety devices","Exterior","Vehicles","Other"];
+
+/* Key-detail prompt chips per category (maintenance pro Q4). Label -> pre-labelled free-text line. */
+var DETAIL_PROMPTS = {
+  "HVAC": ["Filter size","System type","Refrigerant type"],
+  "Water heater": ["Fuel","Capacity (gal)","Tank or tankless","Location / drain"],
+  "Plumbing": ["Main shutoff location","Water / sewer type","Treatment (PRV / softener)"],
+  "Pool equipment": ["Sanitation type","Filter type + size","Pump type","Heater type"],
+  "Kitchen": ["Fridge filter part #","Range fuel","Hood venting"],
+  "Laundry": ["Washer type","Dryer fuel","Hose type","Vent exit / run length"],
+  "Safety devices": ["Alarm expiry (as printed)","Extinguisher class + locations","Electrical panel location"],
+  "Exterior": ["Roof material + year","Foundation type","Termite bond provider","Backflow location"],
+  "Vehicles": ["NC inspection month","Oil specification","Tire size"],
+  "Other": []
+};
+
+/* Task suggestion chips (maintenance pro Q1). months / tier / booking presets.
+   cond: shown with an "If you have one" label. gate: chip hidden until a detail
+   line on some system matches (entered by the user, never inferred). */
+var TASK_CHIPS = {
+  "HVAC": [
+    { title:"Check / replace air filter", months:1, tier:3, booking:false },
+    { title:"Check media filter (4-5 in)", months:6, tier:3, booking:false, cond:true },
+    { title:"Professional tune-up", months:6, tier:3, booking:true },
+    { title:"Clear / treat condensate drain", months:6, tier:2, booking:false },
+    { title:"Clean outdoor coil + clear debris", months:12, tier:3, booking:false }
+  ],
+  "Water heater": [
+    { title:"Flush / drain sediment", months:12, tier:2, booking:false },
+    { title:"Test T&P relief valve", months:12, tier:1, booking:false },
+    { title:"Inspect anode rod", months:36, tier:2, booking:true },
+    { title:"Visual check: lines, pan, leaks", months:12, tier:2, booking:false },
+    { title:"Descale (tankless)", months:12, tier:3, booking:false, cond:true }
+  ],
+  "Plumbing": [
+    { title:"Visual leak check (sinks, lines, toilet bases)", months:6, tier:2, booking:false },
+    { title:"Run water in seldom-used drains", months:1, tier:3, booking:false },
+    { title:"Exercise main shutoff + check it closes", months:12, tier:2, booking:false },
+    { title:"Test toilet flappers / check for silent running", months:12, tier:3, booking:false },
+    { title:"Test sump pump / check moisture", months:6, tier:2, booking:false, cond:true },
+    { title:"Pump septic tank", months:60, tier:2, booking:true, gate:{ label:"Water / sewer type", match:"septic" } }
+  ],
+  "Pool equipment": [
+    { title:"Clean / inspect main filter", months:3, tier:3, booking:false },
+    { title:"Inspect pump basket + lid O-ring", months:6, tier:3, booking:false },
+    { title:"Test pool-area GFCI", months:12, tier:1, booking:false },
+    { title:"Full equipment-pad inspection", months:12, tier:2, booking:false },
+    { title:"Check freeze protection works", months:12, tier:2, booking:false },
+    { title:"Inspect / descale salt cell", months:3, tier:3, booking:false, gate:{ label:"Sanitation type", match:"salt" } }
+  ],
+  "Kitchen": [
+    { title:"Clean dishwasher filter", months:1, tier:3, booking:false },
+    { title:"Degrease range-hood filter", months:3, tier:3, booking:false },
+    { title:"Replace fridge water filter", months:6, tier:3, booking:false, cond:true },
+    { title:"Clean fridge condenser coils", months:12, tier:3, booking:false },
+    { title:"Oven check: door seal + temperature", months:12, tier:3, booking:false }
+  ],
+  "Laundry": [
+    { title:"Washer cleaning cycle + gasket wipe", months:1, tier:3, booking:false, cond:true },
+    { title:"Inspect washer supply hoses", months:6, tier:2, booking:false },
+    { title:"Wash lint screen / check film", months:6, tier:3, booking:false },
+    { title:"Clean dryer vent run + exterior hood", months:12, tier:1, booking:false },
+    { title:"Replace washer hoses", months:60, tier:2, booking:true, cond:true }
+  ],
+  "Safety devices": [
+    { title:"Safety check: test smoke + CO alarms, test 2-3 GFCIs", months:1, tier:1, booking:false },
+    { title:"Replace alarm batteries", months:12, tier:1, booking:false, cond:true },
+    { title:"Check fire extinguishers (gauge, pin, access)", months:12, tier:1, booking:false },
+    { title:"Test garage-door auto-reverse + photo-eye", months:12, tier:1, booking:false },
+    { title:"Replace CO alarms at printed expiry", months:84, tier:1, booking:true, lifeMonths:84 },
+    { title:"Replace smoke alarms at expiry", months:120, tier:1, booking:true, lifeMonths:120 },
+    { title:"Radon re-test", months:24, tier:2, booking:true, cond:true }
+  ],
+  "Exterior": [
+    { title:"Clean gutters + check downspouts", months:6, tier:2, booking:true },
+    { title:"Termite inspection / verify bond current", months:12, tier:2, booking:true },
+    { title:"Roof visual inspection", months:12, tier:2, booking:false },
+    { title:"Check exterior caulk / sealant", months:12, tier:3, booking:false },
+    { title:"Test irrigation backflow preventer", months:12, tier:2, booking:true, cond:true },
+    { title:"Inspect deck / re-seal wood", months:24, tier:3, booking:false, cond:true }
+  ],
+  "Vehicles": [
+    { title:"Rotate tires", months:6, tier:3, booking:false },
+    { title:"NC state inspection", months:12, tier:2, booking:true, anchored:true },
+    { title:"Engine oil + filter (time cap)", months:12, tier:3, booking:false },
+    { title:"Engine oil + filter (severe duty)", months:6, tier:3, booking:false, cond:true },
+    { title:"Replace cabin air filter", months:12, tier:3, booking:false },
+    { title:"Check engine air filter", months:12, tier:3, booking:false },
+    { title:"Test battery + clean terminals", months:12, tier:3, booking:false },
+    { title:"Replace wiper blades", months:12, tier:3, booking:false },
+    { title:"Brake fluid exchange", months:36, tier:3, booking:false }
+  ],
+  "Other": []
+};
+
+/* ---------- derivation engine (derive, never store a second copy) ---------- */
+function entriesForTask(entries, taskId){
+  return entries.filter(function(e){ return e.taskId === taskId; });
+}
+function lastDoneOn(task, entries){
+  var best = null;
+  entriesForTask(entries, task.id).forEach(function(e){ if (!best || e.date > best) best = e.date; });
+  return best;
+}
+function amberDaysFor(task){
+  if (task.kind === "oneoff") return task.needsBooking ? 30 : 14;
+  if (!task.intervalMonths) return 30;
+  var intervalDays = task.intervalMonths * 30.4375;
+  var raw = Math.round(intervalDays * 0.20);
+  var lo = task.needsBooking ? 14 : 3, hi = task.needsBooking ? 45 : 30;
+  var v = Math.max(lo, Math.min(hi, raw));
+  v = Math.min(v, Math.floor(intervalDays / 2));
+  return v;
+}
+function anchoredNextDue(task, entries, today){
+  /* Anchored tasks (e.g. NC inspection month): occurrences step from the
+     anchor at the interval cadence and logging never shifts the anchor.
+     An occurrence is satisfied by a linked entry in the FORWARD cycle that
+     starts at it — a service discharges the obligation whose cycle it falls
+     in, and cover runs until the next occurrence. (Coordinator ruling,
+     2026-11-08: with backward cycles a June service for a January anchor
+     would push the next due date out a full extra cycle — wrong for a
+     legal-deadline task, and the dangerous direction.) An occurrence with a
+     later entry on record is superseded, never shown overdue. */
+  var seed = task.firstDueOn;
+  if (!seed){
+    var ty = parseDate(today).y;
+    var d = Math.min(task.anchorDay, daysInMonth(ty, task.anchorMonth));
+    seed = fmtDate({ y:ty, m:task.anchorMonth, d:d });
+  }
+  var iv = task.intervalMonths;
+  var occ = [];
+  var k;
+  for (k = -12; k <= 12; k++) occ.push(addMonthsClamped(seed, k*iv));
+  occ = occ.filter(Boolean).sort();
+  var mine = entriesForTask(entries, task.id);
+  var lastEntry = mine.length ? mine.map(function(e){ return e.date; }).sort().pop() : null;
+  function occEnd(idx){ return occ[idx+1] || addMonthsClamped(occ[idx], iv); }
+  function satisfied(idx){
+    var start = occ[idx], end = occEnd(idx);
+    return mine.some(function(e){ return e.date >= start && e.date < end; });
+  }
+  function superseded(idx){
+    var end = occEnd(idx);
+    return mine.some(function(e){ return e.date >= end; });
+  }
+  var pivot = lastEntry || today, startIdx = 0, i;
+  for (i = 0; i < occ.length; i++){ if (occ[i] <= pivot) startIdx = i; }
+  for (i = startIdx; i < occ.length; i++){
+    if (!satisfied(i) && !superseded(i)) return occ[i];
+  }
+  return addMonthsClamped(occ[occ.length-1], iv);
+}
+function nextDueOn(task, entries, today){
+  if (task.kind === "oneoff") return task.doneOn ? null : (task.targetOn || null);
+  if (!task.intervalMonths) return null;
+  if (task.anchorMonth && task.anchorDay) return anchoredNextDue(task, entries, today);
+  var ld = lastDoneOn(task, entries);
+  if (ld) return addMonthsClamped(ld, task.intervalMonths);
+  if (task.firstDueOn) return task.firstDueOn;
+  return null;
+}
+function taskStatus(task, entries, today){
+  /* returns { status, nextDueOn, diff } — diff = days from today to due (negative = overdue) */
+  if (task.kind === "oneoff"){
+    if (task.doneOn) return { status:"done", nextDueOn:null, diff:null };
+    if (!task.targetOn) return { status:"backlog", nextDueOn:null, diff:null };
+    var d1 = dayDiff(today, task.targetOn);
+    if (d1 < 0) return { status:"overdue", nextDueOn:task.targetOn, diff:d1 };
+    if (d1 <= amberDaysFor(task)) return { status:"due-soon", nextDueOn:task.targetOn, diff:d1 };
+    return { status:"ok", nextDueOn:task.targetOn, diff:d1 };
+  }
+  if (!task.intervalMonths) return { status:"unscheduled", nextDueOn:null, diff:null };
+  var nd = nextDueOn(task, entries, today);
+  if (!nd) return { status:"needs-date", nextDueOn:null, diff:null };
+  var diff = dayDiff(today, nd);
+  if (diff < 0) return { status:"overdue", nextDueOn:nd, diff:diff };
+  if (diff <= amberDaysFor(task)) return { status:"due-soon", nextDueOn:nd, diff:diff };
+  return { status:"ok", nextDueOn:nd, diff:diff };
+}
+/* Bucketed due language (hostile reviewer Q3): day counts only within ±7 days. */
+function dueText(st){
+  if (!st || st.diff === null || st.diff === undefined) return "";
+  var diff = st.diff;
+  if (st.status === "overdue"){
+    var d = -diff;
+    if (d <= 7) return d === 1 ? "1 day overdue" : d + " days overdue";
+    if (d <= 14) return "Overdue — about 2 weeks";
+    if (d <= 60) return "Overdue — about a month";
+    if (d <= 90) return "Overdue — about 2 months";
+    return "Overdue 3+ months";
+  }
+  if (diff === 0) return "Due today";
+  if (diff <= 7) return diff === 1 ? "Due in 1 day" : "Due in " + diff + " days";
+  if (diff <= 14) return "Due in about 2 weeks";
+  if (diff <= 60) return "Due in about a month";
+  return "Due in about 2 months";
+}
+function radarModel(book, today){
+  var rows = [];
+  book.tasks.forEach(function(t){
+    if (t.kind === "oneoff" && t.doneOn) return;
+    var st = taskStatus(t, book.logEntries, today);
+    var sys = book.systems.find(function(s){ return s.id === t.systemId; });
+    if (!sys) return;
+    rows.push({ task:t, system:sys, st:st });
+  });
+  function byTierThen(a, b, cmp){
+    if (a.task.tier !== b.task.tier) return a.task.tier - b.task.tier;
+    return cmp(a, b);
+  }
+  var overdue = rows.filter(function(r){ return r.st.status === "overdue"; })
+    .sort(function(a,b){ return byTierThen(a,b,function(x,y){ return (x.st.diff - y.st.diff) || (x.st.nextDueOn < y.st.nextDueOn ? -1 : 1) || x.task.title.localeCompare(y.task.title); }); });
+  var duesoon = rows.filter(function(r){ return r.st.status === "due-soon"; })
+    .sort(function(a,b){ return byTierThen(a,b,function(x,y){ return (x.st.nextDueOn < y.st.nextDueOn ? -1 : x.st.nextDueOn > y.st.nextDueOn ? 1 : 0) || x.task.title.localeCompare(y.task.title); }); });
+  var needsdate = rows.filter(function(r){ return r.st.status === "needs-date"; });
+  var backlog = rows.filter(function(r){ return r.st.status === "backlog"; });
+  var unscheduled = rows.filter(function(r){ return r.st.status === "unscheduled"; });
+  var ok = rows.filter(function(r){ return r.st.status === "ok"; })
+    .sort(function(a,b){ return a.st.nextDueOn < b.st.nextDueOn ? -1 : 1; });
+  return { overdue:overdue, duesoon:duesoon, needsdate:needsdate, backlog:backlog, unscheduled:unscheduled, ok:ok,
+           attention: overdue.length + duesoon.length,
+           safetyOverdue: overdue.filter(function(r){ return r.task.tier === 1; }).length };
+}
+function systemDerived(book, systemId){
+  var entries = book.logEntries.filter(function(e){ return e.systemId === systemId; });
+  var lastService = null, total = 0, hasCost = false;
+  entries.forEach(function(e){
+    if (!lastService || e.date > lastService) lastService = e.date;
+    if (e.costCents !== null && e.costCents !== undefined){ total += e.costCents; hasCost = true; }
+  });
+  return { entries:entries, lastService:lastService, costTotal:hasCost ? total : null };
+}
+
+/* ---------- backup: build, validate (9-step), apply ---------- */
+var APP_VERSION = "1.0";
+function blobToBase64(blob){
+  return blob.arrayBuffer().then(function(buf){
+    var bytes = new Uint8Array(buf), out = "", CH = 0x8000, i;
+    for (i = 0; i < bytes.length; i += CH){
+      out += String.fromCharCode.apply(null, bytes.subarray(i, i+CH));
+    }
+    return btoa(out);
+  });
+}
+function base64ToBytes(b64){
+  var bin = atob(b64), bytes = new Uint8Array(bin.length), i;
+  for (i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes;
+}
+async function buildBackup(book, photos){
+  var photoRows = [], i, ph;
+  for (i = 0; i < photos.length; i++){
+    ph = photos[i];
+    if (!ph.blob || typeof ph.blob.size !== "number") { var e1 = new Error("photo unreadable"); e1.code = "EXPORT_PHOTO"; throw e1; }
+    var b64 = await blobToBase64(ph.blob);
+    photoRows.push({ id:ph.id, ownerType:ph.ownerType, ownerId:ph.ownerId, kind:ph.kind, mime:ph.mime,
+      width:ph.width, height:ph.height, bytes:ph.bytes, caption:ph.caption, sortOrder:ph.sortOrder, createdAt:ph.createdAt, dataBase64:b64 });
+  }
+  return {
+    format:"housebook-backup", formatVersion:1, exportedAt:Date.now(), appVersion:APP_VERSION,
+    bookId: book.meta.bookId || "",
+    counts:{ systems:book.systems.length, tasks:book.tasks.length, logEntries:book.logEntries.length, photos:photoRows.length },
+    systems:book.systems, tasks:book.tasks, logEntries:book.logEntries, photos:photoRows
+  };
+}
+function validStr(v, max){ return typeof v === "string" && v.length <= max; }
+function validateBackup(obj, today, extra){
+  var errs = [];
+  function bad(m){ errs.push(m); }
+  extra = extra || { systems:{}, tasks:{}, logEntries:{} };
+  if (!obj || typeof obj !== "object") return { ok:false, errors:["Not a HouseBook backup file."] };
+  if (obj.format !== "housebook-backup") bad("Wrong file format.");
+  if (obj.formatVersion !== 1) bad("Unsupported backup version.");
+  ["systems","tasks","logEntries","photos"].forEach(function(k){ if (!Array.isArray(obj[k])) bad("Missing " + k + "."); });
+  if (errs.length) return { ok:false, errors:errs };
+  if (obj.counts){
+    ["systems","tasks","logEntries","photos"].forEach(function(k){
+      if (obj.counts[k] !== undefined && obj.counts[k] !== obj[k].length) bad("Counts do not match the file's contents.");
+    });
+  }
+  if (obj.photos.length > 2000) bad("Too many photos in this file.");
+  if (errs.length) return { ok:false, errors:errs };
+  var sysIds = {}, taskSys = {}, i, r;
+  function dupCheck(list, name){
+    var seen = {};
+    list.forEach(function(x){ if (!x || typeof x.id !== "string" || !x.id) bad(name + ": a record is missing its id."); else if (seen[x.id]) bad(name + ": duplicate id."); seen[x.id] = true; });
+    return seen;
+  }
+  sysIds = dupCheck(obj.systems, "Systems");
+  Object.keys(extra.systems).forEach(function(k){ sysIds[k] = true; });
+  var taskSeen = dupCheck(obj.tasks, "Tasks"); dupCheck(obj.logEntries, "Log"); dupCheck(obj.photos, "Photos");
+  Object.keys(extra.tasks).forEach(function(k){ taskSeen[k] = true; });
+  obj.systems.forEach(function(s){
+    if (!validStr(s.name, 200) || !s.name.trim()) bad("A system has no name.");
+    if (s.installedOn !== null && s.installedOn !== undefined && !isValidDate(s.installedOn)) bad("A system has an invalid install date.");
+  });
+  obj.tasks.forEach(function(t){
+    if (!sysIds[t.systemId]) bad("A task points at a system that isn't in the file.");
+    else if (!extra.tasks[t.id]) taskSys[t.id] = t.systemId;
+    if (!validStr(t.title, 200) || !t.title.trim()) bad("A task has no title.");
+    if (t.intervalMonths !== null && t.intervalMonths !== undefined && (!Number.isInteger(t.intervalMonths) || t.intervalMonths < 1 || t.intervalMonths > 120)) bad("A task has an invalid interval.");
+    if (t.firstDueOn && !isValidDate(t.firstDueOn)) bad("A task has an invalid first due date.");
+    if (t.targetOn && !isValidDate(t.targetOn)) bad("A task has an invalid target date.");
+  });
+  obj.logEntries.forEach(function(en){
+    if (!sysIds[en.systemId]) bad("A log entry points at a system that isn't in the file.");
+    if (!isValidDate(en.date)) bad("A log entry has an invalid date.");
+    else if (dayDiff(today, en.date) > 0) bad("A log entry is dated in the future.");
+    if (en.taskId){
+      if (taskSys[en.taskId]){ if (taskSys[en.taskId] !== en.systemId) bad("A log entry's task belongs to a different system."); }
+      else if (extra.tasks[en.taskId]){ if (extra.tasks[en.taskId] !== en.systemId) bad("A log entry's task belongs to a different system."); }
+      else bad("A log entry points at a task that isn't in the file.");
+    }
+    if (en.costCents !== null && en.costCents !== undefined && (!Number.isInteger(en.costCents) || en.costCents < 0)) bad("A log entry has an invalid cost.");
+  });
+  obj.photos.forEach(function(p){
+    if (["system","logEntry","draft"].indexOf(p.ownerType) < 0) bad("A photo has an invalid owner type.");
+    if (p.mime !== "image/jpeg") bad("A photo is not a JPEG.");
+    if (!Number.isInteger(p.bytes) || p.bytes < 0) bad("A photo has an invalid size.");
+    if (typeof p.dataBase64 !== "string") bad("A photo is missing its image data.");
+    else {
+      var bytes;
+      try { bytes = base64ToBytes(p.dataBase64); } catch(e){ bad("A photo's image data is damaged."); return; }
+      if (bytes.length !== p.bytes) bad("A photo's image data doesn't match its recorded size.");
+      var ceil = (TIER_A.kinds.indexOf(p.kind) >= 0 ? TIER_A.ceiling : TIER_B.ceiling) + 65536;
+      if (bytes.length > ceil) bad("A photo is larger than HouseBook stores.");
+    }
+  });
+  /* referential: photo owners exist */
+  var entryIds = {}; obj.logEntries.forEach(function(en){ entryIds[en.id] = true; });
+  Object.keys(extra.logEntries).forEach(function(k){ entryIds[k] = true; });
+  obj.photos.forEach(function(p){
+    if (p.ownerType === "system" && !sysIds[p.ownerId]) bad("A photo points at a system that isn't in the file.");
+    if (p.ownerType === "logEntry" && !entryIds[p.ownerId]) bad("A photo points at a log entry that isn't in the file.");
+  });
+  return { ok: errs.length === 0, errors: errs };
+}
+</script>
+<script>
+"use strict";
+/* ============================================================
+   Script 3: app state, navigation, rendering, flows.
+   All user-entered strings render via textContent (see el()).
+   ============================================================ */
+var APP = {
+  book: null,            /* { systems, tasks, logEntries, meta:{} } */
+  view: "radar",
+  systemId: null,
+  amberExpanded: false,
+  stagedPhoto: null,     /* processed photo awaiting save in a flow */
+  stagedPhotoURL: null
+};
+var liveURLs = [];
+function objURL(b){ var u = URL.createObjectURL(b); liveURLs.push(u); return u; }
+function releaseURLs(){ liveURLs.forEach(function(u){ URL.revokeObjectURL(u); }); liveURLs = []; }
+
+async function loadBook(){
+  var systems = await Store.read("systems");
+  var tasks = await Store.read("tasks");
+  var entries = await Store.read("logEntries");
+  var metaRows = await Store.read("meta");
+  var meta = {};
+  metaRows.forEach(function(r){ meta[r.key] = r.value; });
+  APP.book = { systems:systems || [], tasks:tasks || [], logEntries:entries || [], meta:meta };
+  return APP.book;
+}
+function metaPut(key, value){
+  APP.book.meta[key] = value;
+  return Store.tx(["meta"], "readwrite", function(api){ return api.put("meta", { key:key, value:value }); });
+}
+async function ensureBookMeta(){
+  if (!APP.book.meta.bookId){
+    await metaPut("schemaVersion", 1);
+    await metaPut("bookId", uid());
+    await metaPut("bookCreatedAt", Date.now());
+  }
+}
+async function maybePersist(){
+  if (APP.book.meta.persistRequestedAt) return;
+  try { if (navigator.storage && navigator.storage.persist) await navigator.storage.persist(); } catch(e){}
+  await metaPut("persistRequestedAt", Date.now());
+}
+function toast(msg){
+  var t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("show");
+  setTimeout(function(){ t.classList.remove("show"); }, 2600);
+}
+function firstSaveToastIfNeeded(wasEmpty){
+  if (wasEmpty && Store.mode === "idb") toast("Saved on this phone only. HouseBook can't back itself up — export from Settings.");
+  else if (Store.mode === "memory") toast("Added for this visit only.");
+}
+
+/* ---------- navigation ---------- */
+function show(view, systemId){
+  APP.view = view; if (systemId !== undefined) APP.systemId = systemId;
+  APP.amberExpanded = false;
+  releaseURLs();
+  ["radar","systems","system","settings"].forEach(function(v){
+    document.getElementById("view-" + v).classList.toggle("active", v === view);
+  });
+  document.getElementById("tab-radar").setAttribute("aria-selected", view === "radar" ? "true" : "false");
+  document.getElementById("tab-systems").setAttribute("aria-selected", (view === "systems" || view === "system") ? "true" : "false");
+  document.getElementById("tab-settings").setAttribute("aria-selected", view === "settings" ? "true" : "false");
+  document.getElementById("radarNote").style.display = view === "radar" ? "" : "none";
+  window.scrollTo(0, 0);
+  render();
+}
+function render(){
+  if (!APP.book) return;
+  if (APP.view === "radar") renderRadar();
+  else if (APP.view === "systems") renderSystems();
+  else if (APP.view === "system") renderSystemDetail();
+  else if (APP.view === "settings") renderSettings();
+}
+document.getElementById("tab-radar").addEventListener("click", function(){ show("radar"); });
+document.getElementById("tab-systems").addEventListener("click", function(){ show("systems"); });
+document.getElementById("tab-settings").addEventListener("click", function(){ show("settings"); });
+document.getElementById("tab-add").addEventListener("click", function(){ openAddSystem(false); });
+document.addEventListener("visibilitychange", function(){ if (!document.hidden && APP.book) render(); });
+window.addEventListener("pageshow", function(){ if (APP.book) render(); });
+
+/* ---------- sheets ---------- */
+var sheetCleanup = null;
+function openSheet(build){
+  var scrim = document.getElementById("scrim"), sheet = document.getElementById("sheet");
+  clear(sheet);
+  var x = el("button", "iconbtn x"); x.setAttribute("aria-label", "Close"); x.appendChild(icon("plus"));
+  x.firstChild.style.transform = "rotate(45deg)";
+  x.addEventListener("click", closeSheet);
+  sheet.appendChild(x);
+  build(sheet);
+  scrim.classList.add("open"); sheet.classList.add("open");
+  scrim.onclick = closeSheet;
+}
+function closeSheet(){
+  document.getElementById("scrim").classList.remove("open");
+  document.getElementById("sheet").classList.remove("open");
+  if (sheetCleanup){ var f = sheetCleanup; sheetCleanup = null; f(); }
+}
+function confirmSheet(title, bodyText, confirmLabel, danger, onConfirm){
+  openSheet(function(sheet){
+    sheet.appendChild(el("h2", null, title));
+    sheet.appendChild(el("p", "prose", bodyText));
+    var row = el("div", "btnrow");
+    var cancel = el("button", "btn ghost", "Cancel"); cancel.addEventListener("click", closeSheet);
+    var ok = el("button", danger ? "btn danger" : "btn", confirmLabel);
+    ok.addEventListener("click", function(){ closeSheet(); onConfirm(); });
+    row.appendChild(cancel); row.appendChild(ok); sheet.appendChild(row);
+  });
+}
+
+/* ---------- photo picking ---------- */
+var photoPickResolve = null;
+document.getElementById("filePhoto").addEventListener("change", function(){
+  var f = this.files && this.files[0]; this.value = "";
+  if (photoPickResolve){ var r = photoPickResolve; photoPickResolve = null; r(f || null); }
+});
+function pickPhoto(useCamera){
+  return new Promise(function(resolve){
+    photoPickResolve = resolve;
+    var inp = document.getElementById("filePhoto");
+    if (useCamera) inp.setAttribute("capture", "environment"); else inp.removeAttribute("capture");
+    inp.click();
+  });
+}
+async function stagePhoto(file, kind){
+  var p = await processPhoto(file, kind);
+  if (APP.stagedPhotoURL) URL.revokeObjectURL(APP.stagedPhotoURL);
+  APP.stagedPhoto = { blob:p.blob, width:p.width, height:p.height, bytes:p.bytes, mime:p.mime, kind:kind };
+  APP.stagedPhotoURL = objURL(p.blob);
+  return APP.stagedPhoto;
+}
+function clearStagedPhoto(){
+  if (APP.stagedPhotoURL){ URL.revokeObjectURL(APP.stagedPhotoURL); APP.stagedPhotoURL = null; }
+  APP.stagedPhoto = null;
+}
+
+/* ---------- radar ---------- */
+function taskRow(r, withLog){
+  var card = el("div", "rowcard " + (r.st.status === "overdue" ? "overdue" : "duesoon"));
+  var grow = el("button", "grow"); grow.style.textAlign = "left";
+  var t = el("div", "t", r.task.title);
+  if (r.task.tier === 1){ var b = el("span", "badge safety", "SAFETY"); t.appendChild(b); }
+  if (r.task.suggested){ var sc = el("span", "suggchip", "SUGGESTED"); t.appendChild(sc); }
+  grow.appendChild(t);
+  grow.appendChild(el("div", "s", r.system.name));
+  grow.appendChild(el("div", "when", dueText(r.st)));
+  grow.addEventListener("click", function(){ show("system", r.system.id); });
+  card.appendChild(grow);
+  if (withLog){
+    var lb = el("button", "logbtn", "Log it");
+    lb.setAttribute("aria-label", "Log " + r.task.title + " as done");
+    lb.addEventListener("click", function(){ openLogSheet(r.task, r.system); });
+    card.appendChild(lb);
+  }
+  return card;
+}
+function renderRadar(){
+  var view = clear(document.getElementById("view-radar"));
+  var book = APP.book, today = todayStr();
+  if (!book.systems.length){
+    var box = el("div", "emptybox");
+    box.appendChild(el("div", "big", "Photograph a nameplate once, and this book keeps track of what's due."));
+    box.appendChild(el("p", null, "HouseBook can't send reminders — it only works when you open it. Check the radar like you'd check a fridge calendar."));
+    var b = el("button", "btn block", "Add your first system");
+    b.addEventListener("click", function(){ openAddSystem(false); });
+    box.appendChild(b);
+    view.appendChild(box);
+    return;
+  }
+  var m = radarModel(book, today);
+  var verdict = el("div", "verdict");
+  if (m.attention === 0){
+    verdict.appendChild(document.createTextNode("All clear"));
+    var sub = el("span", "sub");
+    if (m.ok.length){
+      var nx = m.ok[0];
+      sub.textContent = "Next up: " + nx.task.title + " · " + nx.system.name + " — " + monthYear(nx.st.nextDueOn);
+    } else if (m.needsdate.length || m.unscheduled.length){
+      sub.textContent = "Nothing is due yet. Add a first service date on a system page and the radar starts watching.";
+    } else {
+      sub.textContent = "Nothing is due soon.";
+    }
+    verdict.appendChild(sub);
+  } else {
+    verdict.appendChild(document.createTextNode(m.attention === 1 ? "1 needs attention" : m.attention + " need attention"));
+    if (m.safetyOverdue > 0){
+      var sub2 = el("span", "sub", m.safetyOverdue === 1 ? "1 is a safety item" : m.safetyOverdue + " are safety items");
+      verdict.appendChild(sub2);
+    }
+  }
+  view.appendChild(verdict);
+  m.overdue.forEach(function(r){ view.appendChild(taskRow(r, true)); });
+  var shownAmber = APP.amberExpanded ? m.duesoon : m.duesoon.slice(0, 4);
+  shownAmber.forEach(function(r){ view.appendChild(taskRow(r, true)); });
+  if (!APP.amberExpanded && m.duesoon.length > 4){
+    var more = el("button", "summaryrow", "+ " + (m.duesoon.length - 4) + " more due soon");
+    more.addEventListener("click", function(){ APP.amberExpanded = true; renderRadar(); });
+    view.appendChild(more);
+  }
+  var urgentCount = m.overdue.length + Math.min(m.duesoon.length, 4);
+  if (urgentCount < 5 && m.ok.length && m.attention > 0){
+    var nx2 = m.ok[0];
+    view.appendChild(el("div", "nextup", "Next up: " + nx2.task.title + " · " + nx2.system.name + " — " + monthYear(nx2.st.nextDueOn)));
+  }
+  var noDateCount = m.needsdate.length + m.unscheduled.length;
+  if (noDateCount > 0){
+    view.appendChild(el("div", "lanelabel", "No date yet"));
+    view.appendChild(el("div", "nextup", noDateCount === 1
+      ? "1 task has no date yet. It isn't counted above — give it a first service date on its system page."
+      : noDateCount + " tasks have no date yet. They aren't counted above — give them a first service date on their system pages."));
+  }
+  if (m.backlog.length){
+    view.appendChild(el("div", "lanelabel", "One-offs, no date"));
+    m.backlog.forEach(function(r){
+      var row = el("button", "summaryrow", r.task.title + " · " + r.system.name);
+      row.addEventListener("click", function(){ show("system", r.system.id); });
+      view.appendChild(row);
+    });
+  }
+}
+
+/* ---------- systems list ---------- */
+async function coverPhoto(systemId){
+  var photos = await Store.readIndex("photos", "by_owner", ["system", systemId]);
+  photos.sort(function(a,b){ return (a.sortOrder - b.sortOrder) || (a.createdAt - b.createdAt); });
+  var np = photos.find(function(p){ return p.kind === "nameplate"; });
+  return np || photos[0] || null;
+}
+function isParked(book, sys){
+  var hasTask = book.tasks.some(function(t){ return t.systemId === sys.id; });
+  return !hasTask && !sys._hasPhoto;
+}
+async function renderSystems(){
+  var view = clear(document.getElementById("view-systems"));
+  var book = APP.book, today = todayStr();
+  view.appendChild(el("h2", null, "Systems")).style.fontFamily = "var(--serif)";
+  view.lastChild.style.fontSize = "24px"; view.lastChild.style.marginBottom = "12px";
+  /* photo presence flags */
+  for (var i = 0; i < book.systems.length; i++){
+    var ph = await Store.readIndex("photos", "by_owner", ["system", book.systems[i].id]);
+    book.systems[i]._hasPhoto = ph.length > 0;
+  }
+  /* interrupted-add draft */
+  var draft = book.meta.addDraft;
+  if (draft){
+    var dc = el("div", "draftcard");
+    dc.appendChild(el("div", "t", "Finish adding this?"));
+    dc.appendChild(el("p", "note", "You started adding a system and got pulled away. The photo is saved — pick up where you left off."));
+    var drow = el("div", "btnrow");
+    var resume = el("button", "btn small", "Finish adding");
+    resume.addEventListener("click", function(){ openAddSystem(true); });
+    var discard = el("button", "btn ghost small", "Discard");
+    discard.addEventListener("click", function(){
+      confirmSheet("Discard this half-added system?", "The saved photo and name will be removed. Nothing else in your book changes.", "Discard", true, async function(){
+        if (draft.photoId) await Store.tx(["photos"], "readwrite", function(api){ return api.del("photos", draft.photoId); });
+        await metaPut("addDraft", null);
+        render();
+      });
+    });
+    drow.appendChild(resume); drow.appendChild(discard); dc.appendChild(drow);
+    view.appendChild(dc);
+  }
+  /* calm backup line (once, dismissible, never on the radar) */
+  if (book.systems.length >= 1 && !book.meta.lastExportAt && !book.meta.backupLineDismissed){
+    var bl = el("div", "warnbox");
+    bl.appendChild(el("div", null, "This book lives only on this phone. Export a backup so a copy exists somewhere else."));
+    var brow = el("div", "btnrow");
+    var ex = el("button", "btn small", "Export my book");
+    ex.addEventListener("click", function(){ doExport(); });
+    var dis = el("button", "btn ghost small", "Not now");
+    dis.addEventListener("click", async function(){ await metaPut("backupLineDismissed", true); render(); });
+    brow.appendChild(ex); brow.appendChild(dis); bl.appendChild(brow);
+    view.appendChild(bl);
+  }
+  var m = radarModel(book, today);
+  var attnBySystem = {};
+  m.overdue.concat(m.duesoon).forEach(function(r){ attnBySystem[r.system.id] = (attnBySystem[r.system.id] || 0) + 1; });
+  var inBook = book.systems.filter(function(s){ return !isParked(book, s); });
+  var parked = book.systems.filter(function(s){ return isParked(book, s); });
+  for (var j = 0; j < inBook.length; j++){
+    (function(sys){
+      var card = el("button", "syscard");
+      var cover = null;
+      var derived = systemDerived(book, sys.id);
+      var txt = el("span", "grow"); txt.style.flex = "1"; txt.style.textAlign = "left";
+      txt.appendChild(el("div", "t", sys.name));
+      var sline = sys.category + (derived.lastService ? " · Last service " + monthYear(derived.lastService) : " · No services logged");
+      if (attnBySystem[sys.id]) sline += " · " + attnBySystem[sys.id] + " need" + (attnBySystem[sys.id] === 1 ? "s" : "") + " attention";
+      txt.appendChild(el("div", "s", sline));
+      card.appendChild(txt);
+      card.appendChild(icon("chevR"));
+      card.addEventListener("click", function(){ show("system", sys.id); });
+      coverPhoto(sys.id).then(function(p){
+        if (p && p.blob){
+          var img = el("img", "thumb"); img.alt = ""; img.src = objURL(p.blob);
+          card.insertBefore(img, card.firstChild);
+        } else {
+          var phd = el("span", "thumbph"); phd.appendChild(icon("photo")); card.insertBefore(phd, card.firstChild);
+        }
+      });
+      view.appendChild(card);
+    })(inBook[j]);
+  }
+  if (parked.length){
+    view.appendChild(el("div", "lanelabel", "Parked — add when you're standing at them"));
+    parked.forEach(function(sys){
+      var row = el("button", "parkedcard");
+      row.appendChild(el("span", null, sys.name));
+      var add = el("span", "muted small", "Add photo + tasks");
+      row.appendChild(add);
+      row.addEventListener("click", function(){ show("system", sys.id); });
+      view.appendChild(row);
+    });
+  }
+  view.appendChild(el("div", "lanelabel", "Start with a name"));
+  view.appendChild(el("p", "note", "Tap a category to park its name here in one tap. Photograph it and add its tasks when you're standing at it."));
+  var chips = el("div", "chips");
+  CATEGORIES.forEach(function(cat){
+    var c = el("button", "chip", cat);
+    c.addEventListener("click", async function(){
+      var exists = APP.book.systems.some(function(s){ return s.name === cat; });
+      if (exists){ toast("That's already in the book."); return; }
+      var sys = { id:uid(), name:cat, category:cat, location:null, brand:null, model:null, serial:null,
+        installedOn:null, details:[], notes:"", createdAt:Date.now(), updatedAt:Date.now() };
+      await Store.tx(["systems"], "readwrite", function(api){ return api.put("systems", sys); });
+      await maybePersist();
+      await loadBook(); render();
+      toast("Parked. Add its photo and tasks whenever you're at it.");
+    });
+    chips.appendChild(c);
+  });
+  view.appendChild(chips);
+  var addBtn = el("button", "btn block", "Add a system with a photo");
+  addBtn.style.marginTop = "16px";
+  addBtn.addEventListener("click", function(){ openAddSystem(false); });
+  view.appendChild(addBtn);
+}
+</script>
+<script>
+"use strict";
+/* ============================================================
+   Script 4: system detail, add/edit flows, log flow.
+   ============================================================ */
+function currentSystem(){
+  return APP.book.systems.find(function(s){ return s.id === APP.systemId; }) || null;
+}
+async function photosOf(ownerType, ownerId){
+  var photos = await Store.readIndex("photos", "by_owner", [ownerType, ownerId]);
+  photos.sort(function(a,b){ return (a.sortOrder - b.sortOrder) || (a.createdAt - b.createdAt); });
+  return photos;
+}
+function basisLine(task, entries){
+  var ld = lastDoneOn(task, entries);
+  var every = task.intervalMonths ? "every " + task.intervalMonths + (task.intervalMonths === 1 ? " month" : " months") : "no set interval";
+  var prov = task.suggested ? " (suggested)" : "";
+  if (ld) return "Based on last service you logged: " + monthYear(ld) + " · " + every + prov;
+  if (task.firstDueOn) return "First due date set by you: " + monthYear(task.firstDueOn) + " · " + every + prov;
+  return "No service logged yet · " + every + prov;
+}
+function intervalText(task){
+  if (task.kind === "oneoff") return task.targetOn ? "One time · target " + prettyDate(task.targetOn) : "One time · no date set";
+  if (!task.intervalMonths) return "No interval set";
+  return "Every " + task.intervalMonths + (task.intervalMonths === 1 ? " month" : " months");
+}
+function statusTextFor(task, st){
+  if (task.kind === "oneoff"){
+    if (st.status === "done") return "Done " + prettyDate(task.doneOn);
+    if (st.status === "backlog") return "In the backlog — no date set";
+    return dueText(st) + " · " + prettyDate(st.nextDueOn);
+  }
+  if (st.status === "unscheduled") return "No schedule — add an interval to put it on the radar";
+  if (st.status === "needs-date") return "Needs a first date — log a service or set a first due date";
+  if (st.status === "ok") return "Next due " + monthYear(st.nextDueOn);
+  return dueText(st) + " · due " + prettyDate(st.nextDueOn);
+}
+
+async function renderSystemDetail(){
+  var view = clear(document.getElementById("view-system"));
+  var sys = currentSystem();
+  if (!sys){ show("systems"); return; }
+  var book = APP.book, today = todayStr();
+  var back = el("button", "btn ghost small"); back.appendChild(icon("back")); back.appendChild(document.createTextNode(" All systems"));
+  back.addEventListener("click", function(){ show("systems"); });
+  view.appendChild(back);
+  var h = el("h2", null, sys.name); h.style.fontFamily = "var(--serif)"; h.style.fontSize = "27px"; h.style.margin = "12px 0 2px";
+  view.appendChild(h);
+  view.appendChild(el("div", "muted", sys.category + (sys.location ? " · " + sys.location : "")));
+  /* photos */
+  var photos = await photosOf("system", sys.id);
+  var nameplates = photos.filter(function(p){ return p.kind === "nameplate"; });
+  if (nameplates.length){
+    var hero = el("div", "hero");
+    var himg = el("img"); himg.alt = "Nameplate photo for " + sys.name;
+    if (nameplates[0].blob) himg.src = objURL(nameplates[0].blob);
+    hero.appendChild(himg);
+    hero.addEventListener("click", function(){ openPhotoViewer(nameplates[0]); });
+    view.appendChild(hero);
+  }
+  var strip = el("div", "photostrip");
+  photos.forEach(function(p){
+    var fig = el("figure");
+    if (p.blob){
+      var im = el("img"); im.alt = p.caption || p.kind + " photo"; im.src = objURL(p.blob);
+      im.addEventListener("click", function(){ openPhotoViewer(p); });
+      fig.appendChild(im);
+    } else {
+      var un = el("div", "unreadable", "This photo couldn't be read. The rest of this record is fine.");
+      fig.appendChild(un);
+    }
+    fig.appendChild(el("figcaption", null, p.kind));
+    strip.appendChild(fig);
+  });
+  var addFig = el("figure");
+  var addTile = el("button", "unreadable"); addTile.style.border = "1px dashed var(--line)"; addTile.style.color = "var(--muted)";
+  addTile.appendChild(icon("camera")); addTile.appendChild(el("div", null, "Add photo"));
+  addTile.addEventListener("click", function(){ openAddPhoto(sys, null); });
+  addFig.appendChild(addTile); strip.appendChild(addFig);
+  view.appendChild(strip);
+  view.appendChild(el("p", "note", "Photograph the nameplate — the metal label with model and serial. Fill the frame with the plate."));
+  /* details */
+  view.appendChild(el("div", "lanelabel", "Details"));
+  var kvWrap = el("div");
+  function kv(k, v){ if (v === null || v === undefined || v === "") return; var row = el("div", "kv"); row.appendChild(el("span", "k", k)); row.appendChild(el("span", "v", v)); kvWrap.appendChild(row); }
+  kv("Brand", sys.brand); kv("Model", sys.model); kv("Serial", sys.serial);
+  kv("Installed", sys.installedOn ? prettyDate(sys.installedOn) : null);
+  (sys.details || []).forEach(function(d){ kv(d.label, d.value); });
+  if (!kvWrap.children.length) kvWrap.appendChild(el("p", "note", "No details yet. The nameplate photo holds most of them — add the few you'd look up (like a filter size) and they'll be here in the aisle."));
+  view.appendChild(kvWrap);
+  var editBtn = el("button", "btn ghost small", "Edit details");
+  editBtn.style.marginTop = "10px";
+  editBtn.addEventListener("click", function(){ openEditSystem(sys); });
+  view.appendChild(editBtn);
+  /* tasks */
+  view.appendChild(el("div", "lanelabel", "Tasks"));
+  var tasks = book.tasks.filter(function(t){ return t.systemId === sys.id; });
+  if (!tasks.length) view.appendChild(el("p", "note", "No tasks yet. Add one and the radar starts watching it."));
+  tasks.forEach(function(task){
+    var st = taskStatus(task, book.logEntries, today);
+    var card = el("div", "taskcard");
+    var tt = el("div", "t", task.title);
+    if (task.tier === 1) tt.appendChild(el("span", "badge safety", "SAFETY"));
+    if (task.suggested) tt.appendChild(el("span", "suggchip", "SUGGESTED"));
+    card.appendChild(tt);
+    card.appendChild(el("div", "meta", intervalText(task) + " · " + statusTextFor(task, st)));
+    if (task.kind === "recurring" && task.intervalMonths) card.appendChild(el("div", "basis", basisLine(task, book.logEntries)));
+    if (task.suggested){
+      card.appendChild(el("div", "qual", "Suggested: a common starting point, not your model's spec. Check your manual, then tap to make it yours."));
+      var use = el("button", "btn ghost small", "Use this interval");
+      use.style.marginTop = "8px";
+      use.addEventListener("click", async function(){
+        task.suggested = false; task.updatedAt = Date.now();
+        await Store.tx(["tasks"], "readwrite", function(api){ return api.put("tasks", task); });
+        await loadBook(); render();
+        toast("Interval set by you.");
+      });
+      card.appendChild(use);
+    }
+    var row = el("div", "btnrow");
+    if (!(task.kind === "oneoff" && task.doneOn)){
+      var logb = el("button", "btn small", task.kind === "oneoff" ? "Mark done" : "Log it");
+      logb.addEventListener("click", function(){ openLogSheet(task, sys); });
+      row.appendChild(logb);
+    }
+    var edb = el("button", "btn ghost small", "Edit task");
+    edb.addEventListener("click", function(){ openTaskEditor(sys, task, null); });
+    row.appendChild(edb);
+    card.appendChild(row);
+    view.appendChild(card);
+  });
+  var addTask = el("button", "btn block", "Add a task");
+  addTask.style.marginTop = "6px";
+  addTask.addEventListener("click", function(){ openTaskEditor(sys, null, null); });
+  view.appendChild(addTask);
+  /* service log */
+  view.appendChild(el("div", "lanelabel", "Service log"));
+  var derived = systemDerived(book, sys.id);
+  var entries = derived.entries.slice().sort(function(a,b){ return (b.date < a.date ? -1 : b.date > a.date ? 1 : (b.createdAt - a.createdAt)); });
+  if (!entries.length) view.appendChild(el("p", "note", "Nothing logged yet. When work gets done — by you or a pro — log it here and the due dates take care of themselves."));
+  entries.forEach(function(en){
+    var row = el("button", "logentry"); row.style.display = "block"; row.style.width = "100%"; row.style.textAlign = "left";
+    row.appendChild(el("div", "d", prettyDate(en.date)));
+    var metaBits = [];
+    var linked = en.taskId ? book.tasks.find(function(t){ return t.id === en.taskId; }) : null;
+    if (linked) metaBits.push(linked.title);
+    if (en.provider) metaBits.push(en.provider);
+    if (en.costCents !== null && en.costCents !== undefined) metaBits.push(esc$(en.costCents));
+    if (metaBits.length) row.appendChild(el("div", "m", metaBits.join(" · ")));
+    if (en.note) row.appendChild(el("div", "n", en.note));
+    row.addEventListener("click", function(){ openEntryEditor(sys, en); });
+    view.appendChild(row);
+  });
+  if (derived.costTotal !== null) view.appendChild(el("p", "note", "Logged costs: " + esc$(derived.costTotal) + " — just the total of what you've typed."));
+  var logGen = el("button", "btn ghost block", "Log a service (no task)");
+  logGen.style.marginTop = "12px";
+  logGen.addEventListener("click", function(){ openLogSheet(null, sys); });
+  view.appendChild(logGen);
+}
+function openPhotoViewer(photo){
+  openSheet(function(sheet){
+    sheet.appendChild(el("h2", null, photo.kind === "nameplate" ? "Nameplate" : "Photo"));
+    if (photo.blob){
+      var wrap = el("div"); wrap.style.overflow = "auto"; wrap.style.maxHeight = "62svh"; wrap.style.marginTop = "10px";
+      var img = el("img"); img.src = objURL(photo.blob); img.alt = photo.caption || "Photo";
+      img.style.width = "100%";
+      var zoomed = false;
+      img.addEventListener("click", function(){ zoomed = !zoomed; img.style.width = zoomed ? "220%" : "100%"; });
+      wrap.appendChild(img); sheet.appendChild(wrap);
+      sheet.appendChild(el("p", "note", "Tap the photo to zoom. On your phone you can also pinch."));
+    } else {
+      sheet.appendChild(el("p", "prose", "This photo couldn't be read. The rest of this record is fine. You can delete this photo and add it again."));
+    }
+    var row = el("div", "btnrow");
+    var del = el("button", "btn danger", "Delete this photo");
+    del.addEventListener("click", function(){
+      confirmSheet("Delete this photo?", "The photo is removed from the book. The rest of the record stays.", "Delete photo", true, async function(){
+        await Store.tx(["photos"], "readwrite", function(api){ return api.del("photos", photo.id); });
+        await loadBook(); render(); toast("Photo deleted.");
+      });
+    });
+    row.appendChild(del); sheet.appendChild(row);
+  });
+}
+function openAddPhoto(sys, entry){
+  openSheet(function(sheet){
+    sheet.appendChild(el("h2", null, "Add a photo"));
+    sheet.appendChild(el("p", "prose", "Photograph the nameplate — the metal label with model and serial. Fill the frame with the plate."));
+    var kinds = entry ? [["invoice","Invoice"],["receipt","Receipt"],["context","Context"],["other","Other"]]
+                      : [["nameplate","Nameplate"],["context","Context"],["other","Other"]];
+    var chosen = kinds[0][0];
+    var seg = el("div", "seg");
+    kinds.forEach(function(k){
+      var c = el("button", "chip", k[1]); c.setAttribute("aria-pressed", k[0] === chosen ? "true" : "false");
+      c.addEventListener("click", function(){
+        chosen = k[0];
+        seg.querySelectorAll(".chip").forEach(function(n){ n.setAttribute("aria-pressed", "false"); });
+        c.setAttribute("aria-pressed", "true");
+      });
+      seg.appendChild(c);
+    });
+    sheet.appendChild(seg);
+    var cam = el("button", "cameraBig"); cam.appendChild(icon("camera")); cam.appendChild(el("span", null, "Take photo"));
+    cam.addEventListener("click", async function(){
+      var f = await pickPhoto(true); if (!f) return;
+      await savePhotoFlow(f, chosen, entry ? "logEntry" : "system", entry ? entry.id : sys.id, sheet);
+    });
+    sheet.appendChild(cam);
+    var lib = el("button", "btn ghost block", "Choose from photos");
+    lib.addEventListener("click", async function(){
+      var f = await pickPhoto(false); if (!f) return;
+      await savePhotoFlow(f, chosen, entry ? "logEntry" : "system", entry ? entry.id : sys.id, sheet);
+    });
+    sheet.appendChild(lib);
+  });
+}
+async function savePhotoFlow(file, kind, ownerType, ownerId, sheet){
+  var processed;
+  try { processed = await processPhoto(file, kind); }
+  catch(e){
+    clear(sheet);
+    sheet.appendChild(el("h2", null, "That photo didn't save"));
+    if (e.code === "PHOTO_TOO_LARGE"){
+      sheet.appendChild(el("p", "prose", "This photo is too large to store without making the small print unreadable. Nothing was saved. Come closer so the plate fills the frame, and take it again."));
+    } else {
+      sheet.appendChild(el("p", "prose", "The photo couldn't be read. Nothing was saved. Try taking it again."));
+    }
+    var ok = el("button", "btn block", "Back");
+    ok.addEventListener("click", function(){ closeSheet(); });
+    sheet.appendChild(ok);
+    return;
+  }
+  var photos = await photosOf(ownerType, ownerId);
+  var rec = { id:uid(), ownerType:ownerType, ownerId:ownerId, kind:kind, blob:processed.blob, mime:processed.mime,
+    width:processed.width, height:processed.height, bytes:processed.bytes, caption:"", sortOrder:photos.length, createdAt:Date.now() };
+  try {
+    await Store.tx(["photos"], "readwrite", function(api){ return api.put("photos", rec); });
+  } catch(e){
+    clear(sheet);
+    sheet.appendChild(el("h2", null, "That didn't save"));
+    sheet.appendChild(el("p", "prose", "That didn't save — this device is out of room for the book. Nothing from this save was added, and your existing book is unchanged. Delete a photo you don't need, or export a backup and clear space, then try again."));
+    var b1 = el("button", "btn block", "Close"); b1.addEventListener("click", closeSheet); sheet.appendChild(b1);
+    return;
+  }
+  await maybePersist();
+  closeSheet();
+  await loadBook(); render();
+  toast(Store.mode === "memory" ? "Added for this visit only." : "Photo saved.");
+}
+</script>
+<script>
+"use strict";
+/* ============================================================
+   Script 5: add-system flow (with interrupted-add drafts),
+   system editor, task editor, log sheet, entry editor.
+   ============================================================ */
+function openAddSystem(resume){
+  var draft = APP.book.meta.addDraft || null;
+  var flow = { name: resume && draft ? (draft.name || "") : "", category: resume && draft ? (draft.category || "Other") : "Other",
+               draftPhotoId: resume && draft ? draft.photoId : null, photoURL: null, busy:false };
+  openSheet(function(sheet){
+    sheet.appendChild(el("h2", null, resume ? "Finish adding this system" : "Add a system"));
+    sheet.appendChild(el("p", "prose", "Photograph the nameplate — the metal label with model and serial. Fill the frame with the plate. That's the record; everything else can come later."));
+    var photoZone = el("div");
+    sheet.appendChild(photoZone);
+    function drawPhotoZone(){
+      clear(photoZone);
+      if (flow.draftPhotoId){
+        Store.read("photos", flow.draftPhotoId).then(function(p){
+          clear(photoZone);
+          if (p && p.blob){
+            var img = el("img"); img.alt = "Nameplate photo"; img.src = objURL(p.blob);
+            img.style.width = "100%"; img.style.borderRadius = "12px"; img.style.margin = "8px 0";
+            photoZone.appendChild(img);
+          }
+          var rt = el("button", "btn ghost block", "Retake photo");
+          rt.addEventListener("click", function(){ takePhoto(); });
+          photoZone.appendChild(rt);
+        });
+      } else {
+        var cam = el("button", "cameraBig"); cam.appendChild(icon("camera")); cam.appendChild(el("span", null, "Photograph the nameplate"));
+        cam.addEventListener("click", function(){ takePhoto(); });
+        photoZone.appendChild(cam);
+        var lib = el("button", "btn ghost block", "Choose from photos");
+        lib.addEventListener("click", function(){ takePhoto(false); });
+        photoZone.appendChild(lib);
+      }
+    }
+    async function takePhoto(useCamera){
+      if (flow.busy) return; flow.busy = true;
+      var f = await pickPhoto(useCamera !== false);
+      if (!f){ flow.busy = false; return; }
+      var processed;
+      try { processed = await processPhoto(f, "nameplate"); }
+      catch(e){
+        flow.busy = false;
+        toast(e.code === "PHOTO_TOO_LARGE" ? "Too large to keep the small print readable. Move closer and try again." : "That photo couldn't be read. Try again.");
+        return;
+      }
+      var oldId = flow.draftPhotoId;
+      var rec = { id:uid(), ownerType:"draft", ownerId:"add-draft", kind:"nameplate", blob:processed.blob, mime:processed.mime,
+        width:processed.width, height:processed.height, bytes:processed.bytes, caption:"", sortOrder:0, createdAt:Date.now() };
+      try {
+        await Store.tx(["photos","meta"], "readwrite", async function(api){
+          if (oldId) await api.del("photos", oldId);
+          await api.put("photos", rec);
+          await api.put("meta", { key:"addDraft", value:{ photoId:rec.id, name:flow.name, category:flow.category } });
+        });
+        APP.book.meta.addDraft = { photoId:rec.id, name:flow.name, category:flow.category };
+        flow.draftPhotoId = rec.id;
+        await maybePersist();
+      } catch(e){
+        toast("That didn't save — this device is out of room for the book. Your existing book is unchanged.");
+      }
+      flow.busy = false;
+      drawPhotoZone();
+    }
+    drawPhotoZone();
+    sheet.appendChild(el("label", "fl", "What is it? Tap one, or name it yourself"));
+    var chips = el("div", "chips");
+    var nameInput = el("input"); nameInput.type = "text"; nameInput.placeholder = "Name it myself"; nameInput.value = flow.name;
+    nameInput.setAttribute("aria-label", "System name");
+    function syncDraftMeta(){
+      if (flow.draftPhotoId){
+        var v = { photoId:flow.draftPhotoId, name:flow.name, category:flow.category };
+        APP.book.meta.addDraft = v;
+        Store.tx(["meta"], "readwrite", function(api){ return api.put("meta", { key:"addDraft", value:v }); });
+      }
+    }
+    CATEGORIES.forEach(function(cat){
+      var c = el("button", "chip", cat);
+      c.setAttribute("aria-pressed", flow.category === cat && flow.name === cat ? "true" : "false");
+      c.addEventListener("click", function(){
+        flow.category = cat; flow.name = cat; nameInput.value = cat;
+        chips.querySelectorAll(".chip").forEach(function(n){ n.setAttribute("aria-pressed", "false"); });
+        c.setAttribute("aria-pressed", "true");
+        syncDraftMeta();
+      });
+      chips.appendChild(c);
+    });
+    sheet.appendChild(chips);
+    sheet.appendChild(nameInput);
+    nameInput.addEventListener("input", function(){ flow.name = nameInput.value; syncDraftMeta(); });
+    var save = el("button", "btn block", "Save system");
+    save.style.marginTop = "18px";
+    save.addEventListener("click", async function(){
+      var name = (nameInput.value || "").trim() || flow.category;
+      var sys = { id:uid(), name:name, category:flow.category, location:null, brand:null, model:null, serial:null,
+        installedOn:null, details:[], notes:"", createdAt:Date.now(), updatedAt:Date.now() };
+      var wasEmpty = APP.book.systems.length === 0;
+      try {
+        await Store.tx(["systems","photos","meta"], "readwrite", async function(api){
+          await api.put("systems", sys);
+          if (flow.draftPhotoId){
+            var p = await api.get("photos", flow.draftPhotoId);
+            if (p){ p.ownerType = "system"; p.ownerId = sys.id; await api.put("photos", p); }
+          }
+          await api.put("meta", { key:"addDraft", value:null });
+        });
+      } catch(e){
+        toast("That didn't save — this device is out of room for the book. Your existing book is unchanged.");
+        return;
+      }
+      APP.book.meta.addDraft = null;
+      await maybePersist();
+      closeSheet();
+      await loadBook();
+      show("system", sys.id);
+      if (wasEmpty) firstSaveToastIfNeeded(true); else toast(Store.mode === "memory" ? "Added for this visit only." : "System saved.");
+    });
+    sheet.appendChild(save);
+    var notNow = el("button", "btn ghost block", "Not now");
+    notNow.style.marginTop = "10px";
+    notNow.addEventListener("click", function(){ closeSheet(); render(); });
+    sheet.appendChild(notNow);
+    if (flow.draftPhotoId) sheet.appendChild(el("p", "note", "Leave whenever — the photo and name stay saved as a draft on the Systems screen."));
+  });
+}
+
+function detailRow(labelVal, valueVal){
+  var row = el("div"); row.style.display = "flex"; row.style.gap = "8px"; row.style.marginBottom = "8px";
+  var l = el("input"); l.type = "text"; l.value = labelVal || ""; l.placeholder = "Label (e.g. Filter size)"; l.style.flex = "0 0 42%";
+  var v = el("input"); v.type = "text"; v.value = valueVal || ""; v.placeholder = "Value"; v.style.flex = "1";
+  var rm = el("button", "iconbtn"); rm.setAttribute("aria-label", "Remove this detail line"); rm.appendChild(icon("trash"));
+  rm.addEventListener("click", function(){ row.remove(); });
+  row.appendChild(l); row.appendChild(v); row.appendChild(rm);
+  row._label = l; row._value = v;
+  return row;
+}
+function openEditSystem(sys){
+  openSheet(function(sheet){
+    sheet.appendChild(el("h2", null, "Edit system"));
+    function field(label, val, type){
+      sheet.appendChild(el("label", "fl", label));
+      var i = el("input"); i.type = type || "text"; i.value = val || "";
+      sheet.appendChild(i); return i;
+    }
+    var nameI = field("Name", sys.name);
+    sheet.appendChild(el("label", "fl", "Category"));
+    var catSel = el("select");
+    CATEGORIES.forEach(function(c){ var o = el("option", null, c); o.value = c; if (c === sys.category) o.selected = true; catSel.appendChild(o); });
+    sheet.appendChild(catSel);
+    var locI = field("Location (e.g. Garage, Pool pad)", sys.location);
+    var brandI = field("Brand — only if you want it typed; the photo holds it", sys.brand);
+    var modelI = field("Model", sys.model);
+    var serialI = field("Serial", sys.serial);
+    sheet.appendChild(el("label", "fl", "Installed on (leave blank if you don't know)"));
+    var instI = el("input"); instI.type = "date"; instI.value = sys.installedOn || ""; sheet.appendChild(instI);
+    sheet.appendChild(el("label", "fl", "Key details — the things you'd look up"));
+    var prompts = DETAIL_PROMPTS[sys.category] || [];
+    if (prompts.length){
+      var pchips = el("div", "chips");
+      prompts.forEach(function(p){
+        var c = el("button", "chip small", p); c.style.minHeight = "44px";
+        c.addEventListener("click", function(){ detWrap.appendChild(detailRow(p, "")); });
+        pchips.appendChild(c);
+      });
+      sheet.appendChild(pchips);
+    }
+    var detWrap = el("div");
+    (sys.details || []).forEach(function(d){ detWrap.appendChild(detailRow(d.label, d.value)); });
+    sheet.appendChild(detWrap);
+    var addDet = el("button", "btn ghost small", "Add a detail line");
+    addDet.addEventListener("click", function(){ detWrap.appendChild(detailRow("", "")); });
+    sheet.appendChild(addDet);
+    sheet.appendChild(el("label", "fl", "Notes"));
+    var notesI = el("textarea"); notesI.value = sys.notes || ""; sheet.appendChild(notesI);
+    var save = el("button", "btn block", "Save changes"); save.style.marginTop = "18px";
+    save.addEventListener("click", async function(){
+      var details = [];
+      detWrap.querySelectorAll(":scope > div").forEach(function(r){
+        var l = r._label.value.trim(), v = r._value.value.trim();
+        if (l || v) details.push({ id:uid(), label:l, value:v });
+      });
+      sys.name = nameI.value.trim() || sys.name;
+      sys.category = catSel.value; sys.location = locI.value.trim() || null;
+      sys.brand = brandI.value.trim() || null; sys.model = modelI.value.trim() || null; sys.serial = serialI.value.trim() || null;
+      sys.installedOn = instI.value && isValidDate(instI.value) ? instI.value : null;
+      sys.details = details; sys.notes = notesI.value; sys.updatedAt = Date.now();
+      await Store.tx(["systems"], "readwrite", function(api){ return api.put("systems", sys); });
+      closeSheet(); await loadBook(); render(); toast("Saved.");
+    });
+    sheet.appendChild(save);
+    var del = el("button", "btn danger block", "Delete this system"); del.style.marginTop = "22px";
+    del.addEventListener("click", function(){
+      var book = APP.book;
+      var tCount = book.tasks.filter(function(t){ return t.systemId === sys.id; }).length;
+      var eCount = book.logEntries.filter(function(e){ return e.systemId === sys.id; }).length;
+      confirmSheet("Delete " + sys.name + "?",
+        "This removes the system, its " + tCount + " task" + (tCount === 1 ? "" : "s") + ", " + eCount + " log entr" + (eCount === 1 ? "y" : "ies") + ", and its photos. This can't be undone.",
+        "Delete system", true, async function(){
+          var entryIds = book.logEntries.filter(function(e){ return e.systemId === sys.id; }).map(function(e){ return e.id; });
+          await Store.tx(["systems","tasks","logEntries","photos"], "readwrite", async function(api){
+            var tks = await api.getAllByIndex("tasks", "by_system", sys.id);
+            for (var i = 0; i < tks.length; i++) await api.del("tasks", tks[i].id);
+            var ens = await api.getAllByIndex("logEntries", "by_system", sys.id);
+            for (var j = 0; j < ens.length; j++) await api.del("logEntries", ens[j].id);
+            var phs = await api.getAllByIndex("photos", "by_owner", ["system", sys.id]);
+            for (var k = 0; k < phs.length; k++) await api.del("photos", phs[k].id);
+            for (var q = 0; q < entryIds.length; q++){
+              var ep = await api.getAllByIndex("photos", "by_owner", ["logEntry", entryIds[q]]);
+              for (var w = 0; w < ep.length; w++) await api.del("photos", ep[w].id);
+            }
+            await api.del("systems", sys.id);
+          });
+          await loadBook(); show("systems"); toast("System deleted.");
+        });
+    });
+    sheet.appendChild(del);
+  });
+}
+
+function openTaskEditor(sys, task, chip, asNew){
+  var isNew = asNew || !task;
+  var t = task || { id:uid(), systemId:sys.id, title:chip ? chip.title : "", kind:"recurring",
+    intervalMonths:chip ? chip.months : null, firstDueOn:null, targetOn:null,
+    tier:chip ? chip.tier : 3, needsBooking:chip ? !!chip.booking : false,
+    suggested:chip ? true : false, anchorMonth:null, anchorDay:null, doneOn:null,
+    lifeMonths:chip && chip.lifeMonths ? chip.lifeMonths : null, createdAt:Date.now(), updatedAt:Date.now() };
+  var origInterval = task ? task.intervalMonths : null; /* snapshot before the save handler mutates t (t IS task on edit) */
+  openSheet(function(sheet){
+    sheet.appendChild(el("h2", null, isNew ? "Add a task" : "Edit task"));
+    if (chip) sheet.appendChild(el("p", "note", "Suggested interval — change to match your equipment." + (sys.category === "Vehicles" ? " Vehicle times are caps — or per mileage in your manual." : "")));
+    sheet.appendChild(el("label", "fl", "Task"));
+    var titleI = el("input"); titleI.type = "text"; titleI.value = t.title; sheet.appendChild(titleI);
+    if (isNew){
+      var chipsFor = (TASK_CHIPS[sys.category] || []).filter(function(c){
+        if (!c.gate) return true;
+        return (sys.details || []).some(function(d){ return d.label === c.gate.label && d.value.toLowerCase().indexOf(c.gate.match) >= 0; });
+      });
+      if (chipsFor.length){
+        sheet.appendChild(el("label", "fl", "Common for " + sys.category + " — tap to fill in"));
+        var cw = el("div", "chips");
+        chipsFor.forEach(function(c){
+          var b = el("button", "chip", c.title + " · " + c.months + " mo" + (c.cond ? " — if you have one" : ""));
+          b.addEventListener("click", function(){ openTaskEditor(sys, null, c); });
+          cw.appendChild(b);
+        });
+        sheet.appendChild(cw);
+      }
+    }
+    /* kind */
+    sheet.appendChild(el("label", "fl", "Does it repeat?"));
+    var kindSeg = el("div", "seg");
+    var kindVal = t.kind;
+    [["recurring","Repeats"],["oneoff","One time"]].forEach(function(kv){
+      var c = el("button", "chip", kv[1]); c.setAttribute("aria-pressed", kindVal === kv[0] ? "true" : "false");
+      c.addEventListener("click", function(){
+        if (!isNew) return;
+        kindVal = kv[0];
+        kindSeg.querySelectorAll(".chip").forEach(function(n){ n.setAttribute("aria-pressed", "false"); });
+        c.setAttribute("aria-pressed", "true");
+        drawKindFields();
+      });
+      kindSeg.appendChild(c);
+    });
+    sheet.appendChild(kindSeg);
+    var kindFields = el("div"); sheet.appendChild(kindFields);
+    var intervalI, dateI, clockSeg, warnBox = el("div");
+    var clockMode = "none"; /* lastdone | firstdue | none */
+    function drawKindFields(){
+      clear(kindFields);
+      if (kindVal === "recurring"){
+        kindFields.appendChild(el("label", "fl", "Every how many months? (blank = no schedule)"));
+        intervalI = el("input"); intervalI.type = "number"; intervalI.min = "1"; intervalI.max = "120";
+        intervalI.value = t.intervalMonths || ""; intervalI.setAttribute("inputmode", "numeric");
+        kindFields.appendChild(intervalI);
+        var quick = el("div", "chips");
+        [1,3,6,12,24,36,60,84,120].forEach(function(n){
+          var qc = el("button", "chip", n + " mo"); qc.style.minHeight = "44px";
+          qc.addEventListener("click", function(){ intervalI.value = n; drawWarn(); });
+          quick.appendChild(qc);
+        });
+        kindFields.appendChild(quick);
+        if (isNew){
+          kindFields.appendChild(el("label", "fl", "When does the clock start?"));
+          clockSeg = el("div", "seg");
+          [["lastdone","Last done: today"],["pickdate","Pick a date"],["firstdue","Set first due date"],["none","Don't know yet"]].forEach(function(cv){
+            var c = el("button", "chip", cv[1]); c.setAttribute("aria-pressed", clockMode === cv[0] ? "true" : "false");
+            c.addEventListener("click", function(){
+              clockMode = cv[0];
+              clockSeg.querySelectorAll(".chip").forEach(function(n){ n.setAttribute("aria-pressed", "false"); });
+              c.setAttribute("aria-pressed", "true");
+              dateWrap.style.display = (clockMode === "pickdate" || clockMode === "firstdue") ? "" : "none";
+            });
+            clockSeg.appendChild(c);
+          });
+          kindFields.appendChild(clockSeg);
+          var dateWrap = el("div"); dateWrap.style.display = "none";
+          dateI = el("input"); dateI.type = "date"; dateI.value = todayStr();
+          dateWrap.appendChild(dateI); kindFields.appendChild(dateWrap);
+        } else if (!lastDoneOn(t, APP.book.logEntries)){
+          kindFields.appendChild(el("label", "fl", "First due date (optional)"));
+          dateI = el("input"); dateI.type = "date"; dateI.value = t.firstDueOn || "";
+          kindFields.appendChild(dateI);
+        }
+        if (t.anchorMonth) kindFields.appendChild(el("p", "note", "Anchored to a fixed date each cycle — logging it won't move next year's date."));
+      } else {
+        kindFields.appendChild(el("label", "fl", "Target date (optional — blank means the backlog)"));
+        dateI = el("input"); dateI.type = "date"; dateI.value = t.targetOn || "";
+        kindFields.appendChild(dateI);
+      }
+      kindFields.appendChild(warnBox);
+      drawWarn();
+    }
+    function drawWarn(){
+      clear(warnBox);
+      if (tierVal === 1 && t.lifeMonths){
+        var iv = intervalI ? parseInt(intervalI.value, 10) : t.intervalMonths;
+        var spanHit = iv && iv > t.lifeMonths;
+        var instHit = false;
+        if (sys.installedOn && dateI && dateI.value && isValidDate(dateI.value)){
+          instHit = dayDiff(sys.installedOn, dateI.value) > t.lifeMonths * 30.4375;
+        }
+        if (spanHit || instHit){
+          var wb = el("div", "warnbox", "This device has a rated life of " + Math.round(t.lifeMonths/12) + " years. Past that span the sensor is not reliable — replacing it is the safer call. You can still save this; it's your house.");
+          warnBox.appendChild(wb);
+        }
+      }
+    }
+    /* tier + booking */
+    sheet.appendChild(el("label", "fl", "What happens if it's late?"));
+    var tierSeg = el("div", "seg");
+    var tierVal = t.tier;
+    [[3,"Wear & tear"],[2,"Protects the house"],[1,"Safety"]].forEach(function(tv){
+      var c = el("button", "chip", tv[1]); c.setAttribute("aria-pressed", tierVal === tv[0] ? "true" : "false");
+      c.addEventListener("click", function(){
+        tierVal = tv[0];
+        tierSeg.querySelectorAll(".chip").forEach(function(n){ n.setAttribute("aria-pressed", "false"); });
+        c.setAttribute("aria-pressed", "true");
+        drawWarn();
+      });
+      tierSeg.appendChild(c);
+    });
+    sheet.appendChild(tierSeg);
+    var bookChip = el("button", "chip", "Needs booking or parts");
+    bookChip.setAttribute("aria-pressed", t.needsBooking ? "true" : "false");
+    bookChip.style.marginTop = "10px";
+    var bookVal = !!t.needsBooking;
+    bookChip.addEventListener("click", function(){ bookVal = !bookVal; bookChip.setAttribute("aria-pressed", bookVal ? "true" : "false"); });
+    sheet.appendChild(bookChip);
+    sheet.appendChild(el("p", "note", "Booking/parts tasks turn amber earlier, so there's time to schedule."));
+    drawKindFields();
+    var save = el("button", "btn block", isNew ? "Add task" : "Save task"); save.style.marginTop = "18px";
+    save.addEventListener("click", async function(){
+      var title = titleI.value.trim();
+      if (!title){ toast("Give the task a name first."); return; }
+      t.title = title; t.kind = kindVal; t.tier = tierVal; t.needsBooking = bookVal; t.updatedAt = Date.now();
+      /* Provenance: a SUGGESTED interval is promoted only by "Use this interval" or by
+         changing the interval value (checked below, once the new interval is parsed).
+         A no-change save — or a title/tier/booking edit — leaves it suggested. */
+      var firstEntry = null;
+      if (kindVal === "recurring"){
+        var iv = intervalI && intervalI.value ? parseInt(intervalI.value, 10) : null;
+        if (iv !== null && (!Number.isInteger(iv) || iv < 1 || iv > 120)){ toast("Interval must be 1–120 months."); return; }
+        t.intervalMonths = iv;
+        if (isNew && chip && iv !== chip.months) t.suggested = false; /* he changed the suggested interval — it's his now */
+        if (!isNew && iv !== origInterval) t.suggested = false; /* same rule on edit: only an interval change promotes */
+        if (isNew){
+          if (clockMode === "lastdone" || clockMode === "pickdate"){
+            var d = clockMode === "lastdone" ? todayStr() : (dateI.value || todayStr());
+            if (!isValidDate(d)){ toast("That date isn't a real date."); return; }
+            firstEntry = { id:uid(), systemId:sys.id, taskId:t.id, date:d, provider:"", costCents:null, note:"", createdAt:Date.now(), updatedAt:Date.now() };
+            t.firstDueOn = null;
+            if (chip && chip.anchored){
+              var occ = addMonthsClamped(d, iv || 12), op = parseDate(occ);
+              t.anchorMonth = op.m; t.anchorDay = op.d;
+            }
+          } else if (clockMode === "firstdue"){
+            var fd = dateI.value;
+            if (!fd || !isValidDate(fd)){ toast("Pick a first due date, or choose Don't know yet."); return; }
+            t.firstDueOn = fd;
+            if (chip && chip.anchored){ var fp = parseDate(fd); t.anchorMonth = fp.m; t.anchorDay = fp.d; }
+          }
+        } else if (dateI && !lastDoneOn(t, APP.book.logEntries)){
+          t.firstDueOn = dateI.value && isValidDate(dateI.value) ? dateI.value : null;
+        }
+      } else {
+        t.intervalMonths = null;
+        t.targetOn = dateI && dateI.value && isValidDate(dateI.value) ? dateI.value : null;
+      }
+      await Store.tx(["tasks","logEntries"], "readwrite", async function(api){
+        await api.put("tasks", t);
+        if (firstEntry) await api.put("logEntries", firstEntry);
+      });
+      await maybePersist();
+      closeSheet(); await loadBook(); render();
+      toast(Store.mode === "memory" ? "Added for this visit only." : (isNew ? "Task added." : "Task saved."));
+    });
+    sheet.appendChild(save);
+    if (!isNew){
+      var del = el("button", "btn danger block", "Delete this task"); del.style.marginTop = "20px";
+      del.addEventListener("click", function(){
+        confirmSheet("Delete this task?", "The schedule goes away. Its service history stays in the log — the book keeps what was done.", "Delete task", true, async function(){
+          await Store.tx(["tasks","logEntries"], "readwrite", async function(api){
+            var ens = await api.getAllByIndex("logEntries", "by_task", t.id);
+            for (var i = 0; i < ens.length; i++){ ens[i].taskId = null; await api.put("logEntries", ens[i]); }
+            await api.del("tasks", t.id);
+          });
+          await loadBook(); render(); toast("Task deleted. Its history stays in the log.");
+        });
+      });
+      sheet.appendChild(del);
+    }
+  });
+}
+
+function openLogSheet(task, sys){
+  openSheet(function(sheet){
+    var today = todayStr();
+    sheet.appendChild(el("h2", null, task ? "Log it" : "Log a service"));
+    if (task) sheet.appendChild(el("p", "prose", task.title + " · " + sys.name));
+    sheet.appendChild(el("label", "fl", "Date"));
+    var dateI = el("input"); dateI.type = "date"; dateI.value = today; sheet.appendChild(dateI);
+    var taskSel = null;
+    if (!task){
+      sheet.appendChild(el("label", "fl", "For which task? (optional)"));
+      taskSel = el("select");
+      var none = el("option", null, "No task — just history"); none.value = ""; taskSel.appendChild(none);
+      APP.book.tasks.filter(function(x){ return x.systemId === sys.id && !x.doneOn; }).forEach(function(x){
+        var o = el("option", null, x.title); o.value = x.id; taskSel.appendChild(o);
+      });
+      sheet.appendChild(taskSel);
+      sheet.appendChild(el("label", "fl", "Who did it (optional)"));
+      var provI = el("input"); provI.type = "text"; sheet.appendChild(provI);
+      sheet.appendChild(el("label", "fl", "Cost (optional)"));
+      var costI = el("input"); costI.type = "text"; costI.setAttribute("inputmode", "decimal"); costI.placeholder = "$"; sheet.appendChild(costI);
+      sheet.appendChild(el("label", "fl", "Note (optional)"));
+      var noteI = el("textarea"); sheet.appendChild(noteI);
+      var saveG = el("button", "btn block", "Log service"); saveG.style.marginTop = "16px";
+      saveG.addEventListener("click", async function(){
+        if (saveG.disabled) return; saveG.disabled = true;
+        var cost = null;
+        var raw = costI.value.replace(/[$,]/g, "").trim();
+        if (raw){ var f = parseFloat(raw); if (!isNaN(f) && f >= 0) cost = Math.round(f*100); }
+        var entry = { id:uid(), systemId:sys.id, taskId:taskSel.value || null,
+          date: isValidDate(dateI.value) ? dateI.value : today,
+          provider:provI.value.trim(), costCents:cost, note:noteI.value, createdAt:Date.now(), updatedAt:Date.now() };
+        var doneTask = null;
+        if (entry.taskId){
+          var lt = APP.book.tasks.find(function(x){ return x.id === entry.taskId; });
+          if (lt && lt.kind === "oneoff" && !lt.doneOn) doneTask = lt;
+        }
+        await Store.tx(["logEntries","tasks"], "readwrite", async function(api){
+          await api.put("logEntries", entry);
+          if (doneTask){ doneTask.doneOn = entry.date; doneTask.updatedAt = Date.now(); await api.put("tasks", doneTask); }
+        });
+        await maybePersist();
+        closeSheet(); await loadBook(); render(); toast("Logged.");
+      });
+      sheet.appendChild(saveG);
+      sheet._provI = provI; sheet._costI = costI; sheet._noteI = noteI;
+      return;
+    }
+    /* task path: 2 taps — pre-filled sheet, one Log it */
+    var others = APP.book.tasks.filter(function(x){ return x.systemId === sys.id && x.id !== task.id && x.kind === "recurring"; });
+    var checks = [];
+    if (others.length){
+      sheet.appendChild(el("label", "fl", "Also done on this visit? (only if it really was)"));
+      others.forEach(function(o){
+        var row = el("label", "checkrow");
+        var cb = el("input"); cb.type = "checkbox";
+        row.appendChild(cb); row.appendChild(el("span", null, o.title));
+        sheet.appendChild(row);
+        checks.push({ task:o, cb:cb });
+      });
+    }
+    var save = el("button", "btn block", "Log it"); save.style.marginTop = "16px";
+    save.addEventListener("click", async function(){
+      if (save.disabled) return; save.disabled = true;
+      var d = isValidDate(dateI.value) ? dateI.value : today;
+      var ticked = checks.filter(function(c){ return c.cb.checked; }).map(function(c){ return c.task; });
+      await Store.tx(["logEntries","tasks"], "readwrite", async function(api){
+        var main = { id:uid(), systemId:sys.id, taskId:task.id, date:d, provider:"", costCents:null, note:"", createdAt:Date.now(), updatedAt:Date.now() };
+        await api.put("logEntries", main);
+        for (var i = 0; i < ticked.length; i++){
+          await api.put("logEntries", { id:uid(), systemId:sys.id, taskId:ticked[i].id, date:d, provider:"", costCents:null, note:"", createdAt:Date.now(), updatedAt:Date.now() });
+        }
+        if (task.kind === "oneoff" && !task.doneOn){
+          task.doneOn = d; task.updatedAt = Date.now();
+          await api.put("tasks", task);
+        }
+      });
+      await maybePersist();
+      await loadBook();
+      if (task.kind === "oneoff"){
+        clear(sheet);
+        sheet.appendChild(el("h2", null, "Done — it's in the log"));
+        sheet.appendChild(el("p", "prose", "Want to keep track of this? Both are optional, neither is set up until you tap."));
+        var rep = el("button", "btn block", "Make this repeat");
+        rep.addEventListener("click", function(){
+          var copy = { id:uid(), systemId:sys.id, title:task.title, kind:"recurring", intervalMonths:null, firstDueOn:null,
+            targetOn:null, tier:task.tier, needsBooking:task.needsBooking, suggested:false, anchorMonth:null, anchorDay:null,
+            doneOn:null, lifeMonths:task.lifeMonths || null, createdAt:Date.now(), updatedAt:Date.now() };
+          closeSheet(); openTaskEditor(sys, copy, null, true);
+        });
+        sheet.appendChild(rep);
+        sheet.appendChild(el("label", "fl", "Or check on it in a few months"));
+        var seg = el("div", "seg"); var months = 6;
+        [3,6,12].forEach(function(n){
+          var c = el("button", "chip", n + " months"); c.setAttribute("aria-pressed", n === 6 ? "true" : "false");
+          c.addEventListener("click", function(){ months = n; seg.querySelectorAll(".chip").forEach(function(x){ x.setAttribute("aria-pressed", "false"); }); c.setAttribute("aria-pressed", "true"); });
+          seg.appendChild(c);
+        });
+        sheet.appendChild(seg);
+        var chk = el("button", "btn ghost block", "Set the check-in");
+        chk.style.marginTop = "10px";
+        chk.addEventListener("click", async function(){
+          var follow = { id:uid(), systemId:sys.id, title:"Check: " + task.title, kind:"oneoff", intervalMonths:null,
+            firstDueOn:null, targetOn:addMonthsClamped(d, months), tier:task.tier, needsBooking:false, suggested:false,
+            anchorMonth:null, anchorDay:null, doneOn:null, lifeMonths:null, createdAt:Date.now(), updatedAt:Date.now() };
+          await Store.tx(["tasks"], "readwrite", function(api){ return api.put("tasks", follow); });
+          closeSheet(); await loadBook(); render(); toast("Check-in set.");
+        });
+        sheet.appendChild(chk);
+        var no = el("button", "btn ghost block", "No, just the log entry");
+        no.style.marginTop = "8px";
+        no.addEventListener("click", function(){ closeSheet(); render(); });
+        sheet.appendChild(no);
+        render();
+        return;
+      }
+      closeSheet(); render(); toast("Logged.");
+    });
+    sheet.appendChild(save);
+  });
+}
+
+function openEntryEditor(sys, entry){
+  openSheet(async function(sheet){
+    sheet.appendChild(el("h2", null, "Service entry"));
+    sheet.appendChild(el("label", "fl", "Date"));
+    var dateI = el("input"); dateI.type = "date"; dateI.value = entry.date; sheet.appendChild(dateI);
+    if (entry.date === todayStr()){
+      var y = el("button", "btn ghost small", "Actually yesterday");
+      y.style.marginTop = "8px";
+      y.addEventListener("click", function(){ dateI.value = addDays(todayStr(), -1); });
+      sheet.appendChild(y);
+    }
+    sheet.appendChild(el("label", "fl", "Who did it"));
+    var provI = el("input"); provI.type = "text"; provI.value = entry.provider || ""; sheet.appendChild(provI);
+    sheet.appendChild(el("label", "fl", "Cost"));
+    var costI = el("input"); costI.type = "text"; costI.setAttribute("inputmode", "decimal");
+    costI.value = entry.costCents !== null && entry.costCents !== undefined ? (entry.costCents/100).toString() : "";
+    sheet.appendChild(costI);
+    sheet.appendChild(el("label", "fl", "Note — mileage, parts, what they said"));
+    var noteI = el("textarea"); noteI.value = entry.note || ""; sheet.appendChild(noteI);
+    var photos = await photosOf("logEntry", entry.id);
+    if (photos.length){
+      var strip = el("div", "photostrip");
+      photos.forEach(function(p){
+        var fig = el("figure");
+        if (p.blob){ var im = el("img"); im.src = objURL(p.blob); im.alt = p.kind + " photo"; fig.appendChild(im); }
+        fig.appendChild(el("figcaption", null, p.kind));
+        strip.appendChild(fig);
+      });
+      sheet.appendChild(strip);
+    }
+    var addP = el("button", "btn ghost small", "Add a photo (invoice, receipt)");
+    addP.addEventListener("click", function(){ openAddPhoto(sys, entry); });
+    sheet.appendChild(addP);
+    var save = el("button", "btn block", "Save entry"); save.style.marginTop = "16px";
+    save.addEventListener("click", async function(){
+      var raw = costI.value.replace(/[$,]/g, "").trim();
+      var cost = null;
+      if (raw){ var f = parseFloat(raw); if (!isNaN(f) && f >= 0) cost = Math.round(f*100); }
+      entry.date = isValidDate(dateI.value) ? dateI.value : entry.date;
+      entry.provider = provI.value.trim(); entry.costCents = cost; entry.note = noteI.value;
+      entry.updatedAt = Date.now();
+      await Store.tx(["logEntries"], "readwrite", function(api){ return api.put("logEntries", entry); });
+      closeSheet(); await loadBook(); render(); toast("Entry saved.");
+    });
+    sheet.appendChild(save);
+    var del = el("button", "btn danger block", "Delete this entry"); del.style.marginTop = "20px";
+    del.addEventListener("click", function(){
+      confirmSheet("Delete this entry?", "The entry and its photos are removed. If it was a task's latest service, that task's next due date moves back to the service before it.", "Delete entry", true, async function(){
+        await Store.tx(["logEntries","photos"], "readwrite", async function(api){
+          var phs = await api.getAllByIndex("photos", "by_owner", ["logEntry", entry.id]);
+          for (var i = 0; i < phs.length; i++) await api.del("photos", phs[i].id);
+          await api.del("logEntries", entry.id);
+        });
+        await loadBook(); render(); toast("Entry deleted.");
+      });
+    });
+    sheet.appendChild(del);
+  });
+}
+</script>
+<script>
+"use strict";
+/* ============================================================
+   Script 6: settings, export/import, erase, boot.
+   ============================================================ */
+function fmtBytes(n){
+  if (n < 1024) return n + " B";
+  if (n < 1048576) return (n/1024).toFixed(1) + " KB";
+  return (n/1048576).toFixed(1) + " MB";
+}
+async function renderSettings(){
+  var view = clear(document.getElementById("view-settings"));
+  var book = APP.book;
+  var photoBytes = 0;
+  var photos = await Store.readAll("photos");
+  photos.forEach(function(p){ photoBytes += p.bytes || 0; });
+  var h = el("h2", null, "About this book"); h.style.fontFamily = "var(--serif)"; h.style.fontSize = "24px";
+  view.appendChild(h);
+  var counts = el("div"); counts.style.marginTop = "8px";
+  function kv(k, v){ var row = el("div", "kv"); row.appendChild(el("span", "k", k)); row.appendChild(el("span", "v", v)); counts.appendChild(row); }
+  kv("Systems", String(book.systems.length));
+  kv("Tasks", String(book.tasks.length));
+  kv("Log entries", String(book.logEntries.length));
+  kv("Photos", String(photos.length) + " (" + fmtBytes(photoBytes) + ")");
+  view.appendChild(counts);
+  var estSpan = el("p", "note", "");
+  view.appendChild(estSpan);
+  if (navigator.storage && navigator.storage.estimate){
+    navigator.storage.estimate().then(function(est){
+      if (est && est.usage !== undefined) estSpan.textContent = "The browser estimates this site is using about " + fmtBytes(est.usage) + " on this device. That's an estimate, not a meter.";
+    }).catch(function(){});
+  }
+  var persistLine = el("p", "note", "");
+  if (Store.mode === "memory"){
+    persistLine.textContent = "This browser isn't keeping saves between visits — the book lives only while this page is open.";
+  } else if (navigator.storage && navigator.storage.persisted){
+    navigator.storage.persisted().then(function(p){
+      persistLine.textContent = p
+        ? "Long-term keeping: on. This browser keeps the book on this device."
+        : "The book is saved on this device for now. A browser can still clear site data — the export below is the real safety net.";
+    }).catch(function(){ persistLine.textContent = ""; });
+  }
+  view.appendChild(persistLine);
+  if (book.meta.lastExportAt){
+    view.appendChild(el("p", "note", "Last exported: " + prettyDate(book.meta.lastExportAt.slice(0,10)) + "."));
+  } else if (photos.length || book.systems.length){
+    view.appendChild(el("p", "note", "No backup exported yet."));
+  }
+  /* export */
+  view.appendChild(el("div", "lanelabel", "Backup"));
+  view.appendChild(el("p", "prose", "This file contains your whole book, unencrypted. Store it like house keys."));
+  var exp = el("button", "btn block", "Export backup file");
+  exp.addEventListener("click", function(){ doExport(); });
+  view.appendChild(exp);
+  var imp = el("button", "btn ghost block", "Restore from a backup file");
+  imp.style.marginTop = "10px";
+  imp.addEventListener("click", function(){ document.getElementById("fileImport").click(); });
+  view.appendChild(imp);
+  /* about */
+  view.appendChild(el("div", "lanelabel", "About HouseBook"));
+  view.appendChild(el("p", "prose", "HouseBook lives only in this browser, on this device. There is no account, no server, and no notifications — the radar updates when you open it. If this browser's data is cleared, the book is gone unless you exported a backup. The backup file isn't encrypted: anyone who opens it can read everything in it. There's no lock on the book, so anyone using this device and browser can open it. And HouseBook only knows what you tell it — a task you never add can't come due, and a date you never log can't be counted."));
+  /* erase */
+  view.appendChild(el("div", "lanelabel", "Start over"));
+  var erase = el("button", "btn danger block", "Erase this book");
+  erase.addEventListener("click", function(){
+    confirmSheet("Erase this book?", "Every system, task, log entry, and photo in this book is deleted from this device. Export a backup first if you might want any of it back.", "Keep going", true, function(){
+      confirmSheet("Really erase everything?", "This is the last step. There's no undo and no copy anywhere else.", "Erase everything", true, async function(){
+        await Store.tx(["systems","tasks","logEntries","photos","meta"], "readwrite", async function(api){
+          await api.clear("systems"); await api.clear("tasks"); await api.clear("logEntries"); await api.clear("photos"); await api.clear("meta");
+          await api.put("meta", { key:"bookId", value:uid() });
+          await api.put("meta", { key:"schemaVersion", value:1 });
+          await api.put("meta", { key:"createdAt", value:Date.now() });
+        });
+        await loadBook(); show("radar"); toast("Book erased.");
+      });
+    });
+  });
+  view.appendChild(erase);
+}
+async function doExport(){
+  try {
+    var photos = await Store.readAll("photos");
+    var backup = await buildBackup(APP.book, photos);
+    var json = JSON.stringify(backup);
+    var blob = new Blob([json], { type:"application/json" });
+    var url = URL.createObjectURL(blob);
+    var a = el("a"); a.href = url; a.download = "housebook-backup-" + todayStr() + ".json";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 5000);
+    var now = new Date().toISOString();
+    await metaPut("lastExportAt", now);
+    APP.book.meta.lastExportAt = now;
+    render();
+    toast("Backup exported. Store it like house keys.");
+  } catch(e){
+    openSheet(function(sheet){
+      sheet.appendChild(el("h2", null, "Export didn't finish"));
+      sheet.appendChild(el("p", "prose", e.code === "BACKUP_TOO_LARGE"
+        ? "This book is too big to export as one file. Nothing was changed. Delete photos you don't need and try again."
+        : "A photo in this book couldn't be read, so the export stopped rather than leave it out silently. Nothing was changed. You can delete that photo from its system page and export again."));
+      var ok = el("button", "btn block", "Back"); ok.addEventListener("click", closeSheet); sheet.appendChild(ok);
+    });
+  }
+}
+function importErrorSheet(messages){
+  openSheet(function(sheet){
+    sheet.appendChild(el("h2", null, "That file can't be restored"));
+    sheet.appendChild(el("p", "prose", "Nothing was imported and your book is unchanged."));
+    messages.slice(0, 5).forEach(function(m){ sheet.appendChild(el("p", "note", m)); });
+    var ok = el("button", "btn block", "Back"); ok.addEventListener("click", closeSheet); sheet.appendChild(ok);
+  });
+}
+async function handleImportFile(file){
+  if (!file) return;
+  if (file.size > 262144000){ importErrorSheet(["That file is larger than HouseBook accepts."]); return; }
+  var text;
+  try { text = await file.text(); } catch(e){ importErrorSheet(["The file couldn't be read."]); return; }
+  var obj;
+  try { obj = JSON.parse(text); } catch(e){ importErrorSheet(["That file isn't a HouseBook backup."]); return; }
+  var today = todayStr();
+  var extra = { systems:{}, tasks:{}, logEntries:{} };
+  APP.book.systems.forEach(function(s){ extra.systems[s.id] = true; });
+  APP.book.tasks.forEach(function(t){ extra.tasks[t.id] = t.systemId; });
+  APP.book.logEntries.forEach(function(en){ extra.logEntries[en.id] = true; });
+  var strict = validateBackup(obj, today);
+  var union = strict.ok ? strict : validateBackup(obj, today, extra);
+  if (!union.ok){ importErrorSheet(union.errors); return; }
+  var different = obj.bookId && APP.book.meta.bookId && obj.bookId !== APP.book.meta.bookId;
+  openSheet(function(sheet){
+    sheet.appendChild(el("h2", null, "Restore this backup?"));
+    var expDate = obj.exportedAt ? prettyDate(String(obj.exportedAt).slice(0,10)) : "unknown date";
+    sheet.appendChild(el("p", "prose", "Exported " + expDate + " · " + obj.systems.length + " systems, " + obj.tasks.length + " tasks, " + obj.logEntries.length + " log entries, " + obj.photos.length + " photos."));
+    if (different) sheet.appendChild(el("p", "prose", "This file is a different book than the one on this device."));
+    var mode = strict.ok ? "replace" : "merge";
+    var seg = el("div", "seg");
+    var repB = el("button", "chip", "Replace this book"); repB.setAttribute("aria-pressed", mode === "replace" ? "true" : "false");
+    var merB = el("button", "chip", "Merge (add what's new)"); merB.setAttribute("aria-pressed", mode === "merge" ? "true" : "false");
+    if (!strict.ok){ repB.disabled = true; repB.style.opacity = ".45"; }
+    repB.addEventListener("click", function(){ mode = "replace"; repB.setAttribute("aria-pressed", "true"); merB.setAttribute("aria-pressed", "false"); drawAck(); });
+    merB.addEventListener("click", function(){ mode = "merge"; merB.setAttribute("aria-pressed", "true"); repB.setAttribute("aria-pressed", "false"); drawAck(); });
+    seg.appendChild(repB); seg.appendChild(merB); sheet.appendChild(seg);
+    sheet.appendChild(el("p", "note", "Replace deletes the book on this device and writes this file in its place. Merge adds only records that aren't already here — it never overwrites."));
+    var ackWrap = el("div"); sheet.appendChild(ackWrap);
+    var ackChecked = false;
+    function drawAck(){
+      clear(ackWrap); ackChecked = false;
+      if (mode === "replace" && obj.systems.length === 0 && APP.book.systems.length > 0){
+        var row = el("label", "checkrow");
+        var cb = el("input"); cb.type = "checkbox";
+        cb.addEventListener("change", function(){ ackChecked = cb.checked; confirm.disabled = !ackChecked; });
+        row.appendChild(cb);
+        row.appendChild(el("span", null, "This file is an empty book. Replacing will erase the book on this device — I understand."));
+        ackWrap.appendChild(row);
+        confirm.disabled = true;
+      } else { confirm.disabled = false; }
+    }
+    var confirm = el("button", "btn block", "Restore"); confirm.style.marginTop = "14px";
+    confirm.addEventListener("click", async function(){
+      if (confirm.disabled) return; confirm.disabled = true;
+      try { await applyImport(obj, mode, extra); }
+      catch(e){ importErrorSheet(["The restore failed partway. " + (mode === "replace" ? "Your book may be incomplete — restore again from the file." : "Try the restore again.")]); return; }
+      closeSheet(); await loadBook(); show("radar");
+    });
+    sheet.appendChild(confirm);
+    drawAck();
+    var cancel = el("button", "btn ghost block", "Cancel"); cancel.style.marginTop = "8px";
+    cancel.addEventListener("click", closeSheet); sheet.appendChild(cancel);
+  });
+}
+async function decodePhotos(list){
+  return list.map(function(p){
+    var bytes = base64ToBytes(p.dataBase64);
+    return { id:p.id, ownerType:p.ownerType, ownerId:p.ownerId, kind:p.kind, blob:new Blob([bytes], { type:"image/jpeg" }),
+      mime:p.mime, width:p.width, height:p.height, bytes:p.bytes, caption:p.caption || "", sortOrder:p.sortOrder || 0, createdAt:p.createdAt || Date.now() };
+  });
+}
+async function applyImport(obj, mode, extra){
+  var photoRecs = await decodePhotos(obj.photos);
+  if (mode === "replace"){
+    await Store.tx(["systems","tasks","logEntries","photos","meta"], "readwrite", async function(api){
+      await api.clear("systems"); await api.clear("tasks"); await api.clear("logEntries"); await api.clear("photos"); await api.clear("meta");
+      var i;
+      for (i = 0; i < obj.systems.length; i++) await api.put("systems", obj.systems[i]);
+      for (i = 0; i < obj.tasks.length; i++) await api.put("tasks", obj.tasks[i]);
+      for (i = 0; i < obj.logEntries.length; i++) await api.put("logEntries", obj.logEntries[i]);
+      for (i = 0; i < photoRecs.length; i++) await api.put("photos", photoRecs[i]);
+      await api.put("meta", { key:"bookId", value: obj.bookId || uid() });
+      await api.put("meta", { key:"schemaVersion", value: 1 });
+      await api.put("meta", { key:"createdAt", value: obj.createdAt || Date.now() });
+      if (obj.exportedAt) await api.put("meta", { key:"lastExportAt", value: obj.exportedAt });
+      if (APP.book.meta.persistRequestedAt) await api.put("meta", { key:"persistRequestedAt", value: APP.book.meta.persistRequestedAt });
+    });
+    toast("Book restored from backup.");
+  } else {
+    var added = { systems:0, tasks:0, logEntries:0, photos:0 }, skipped = 0;
+    await Store.tx(["systems","tasks","logEntries","photos"], "readwrite", async function(api){
+      var i, ex;
+      for (i = 0; i < obj.systems.length; i++){ ex = await api.get("systems", obj.systems[i].id); if (ex) skipped++; else { await api.put("systems", obj.systems[i]); added.systems++; } }
+      for (i = 0; i < obj.tasks.length; i++){ ex = await api.get("tasks", obj.tasks[i].id); if (ex) skipped++; else { await api.put("tasks", obj.tasks[i]); added.tasks++; } }
+      for (i = 0; i < obj.logEntries.length; i++){ ex = await api.get("logEntries", obj.logEntries[i].id); if (ex) skipped++; else { await api.put("logEntries", obj.logEntries[i]); added.logEntries++; } }
+      for (i = 0; i < photoRecs.length; i++){ ex = await api.get("photos", photoRecs[i].id); if (ex) skipped++; else { await api.put("photos", photoRecs[i]); added.photos++; } }
+    });
+    toast("Merged: added " + added.systems + " systems, " + added.tasks + " tasks, " + added.logEntries + " entries, " + added.photos + " photos. " + skipped + " already here, skipped.");
+  }
+  await maybePersist();
+}
+/* import file wiring */
+document.getElementById("fileImport").addEventListener("change", function(ev){
+  var f = ev.target.files && ev.target.files[0];
+  ev.target.value = "";
+  handleImportFile(f);
+});
+/* boot */
+(async function boot(){
+  await Store.open();
+  if (Store.mode === "memory"){
+    var banner = document.getElementById("saveBanner");
+    banner.textContent = "This book can't save on this device. Anything you add will be gone when this page closes. Export a backup before you close it if you want to keep it.";
+    banner.hidden = false;
+  }
+  await loadBook();
+  await ensureBookMeta();
+  show("radar");
+})();
+/* harness surface */
+window.HB = {
+  dates: { parseDate:parseDate, isValidDate:isValidDate, addMonthsClamped:addMonthsClamped, dayDiff:dayDiff, addDays:addDays, todayStr:todayStr },
+  derive: { lastDoneOn:lastDoneOn, nextDueOn:nextDueOn, taskStatus:taskStatus, amberDaysFor:amberDaysFor, radarModel:radarModel, dueText:dueText },
+  store: Store, state: function(){ return APP; }, loadBook: loadBook,
+  buildBackup: buildBackup, validateBackup: validateBackup, processPhoto: processPhoto
+};
+</script>
+</body>
+</html>
