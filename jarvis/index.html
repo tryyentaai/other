@@ -1,0 +1,634 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark" />
+    <link rel="icon" href="data:," />
+    <title>JARVIS Boot Animation</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+    <style>
+      :root{
+        --bg:#02070a;
+        --bg-2:#04141d;
+        --panel:rgba(6,32,44,.72);
+        --line:rgba(53,214,255,.28);
+        --line-soft:rgba(53,214,255,.14);
+        --cyan:#35d6ff;
+        --cyan-deep:#0e86ad;
+        --ice:#d7f6ff;
+        --dim:#7fb6c9;
+        --faint:#4d7e90;
+        --amber:#ffb454;
+        --green:#3dffc8;
+        --red:#ff5d5d;
+        --glow:0 0 22px rgba(53,214,255,.45), 0 0 64px rgba(53,214,255,.18);
+      }
+      *{ box-sizing:border-box; }
+      html,body{ height:100%; }
+      body{
+        margin:0;
+        background:
+          radial-gradient(1100px 700px at 50% 38%, #07293c 0%, var(--bg-2) 46%, var(--bg) 100%);
+        color:var(--ice);
+        font-family:"Rajdhani", system-ui, sans-serif;
+        overflow-x:hidden;
+      }
+      /* faint HUD grid */
+      body::before{
+        content:""; position:fixed; inset:0; pointer-events:none; opacity:.5;
+        background:
+          linear-gradient(rgba(53,214,255,.045) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(53,214,255,.045) 1px, transparent 1px);
+        background-size:44px 44px;
+        mask-image:radial-gradient(ellipse at 50% 42%, black 30%, transparent 78%);
+        -webkit-mask-image:radial-gradient(ellipse at 50% 42%, black 30%, transparent 78%);
+      }
+      body::after{
+        content:""; position:fixed; inset:0; pointer-events:none;
+        background:radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,.55) 100%);
+      }
+      button{ font-family:inherit; cursor:pointer; }
+      button, a.btn{ min-height:48px; }
+
+      .stage{
+        position:relative; z-index:1;
+        min-height:100dvh;
+        display:flex; flex-direction:column;
+        padding:14px clamp(12px, 3vw, 34px) 20px;
+      }
+      .stage:fullscreen{ background:radial-gradient(1100px 700px at 50% 38%, #07293c 0%, var(--bg-2) 46%, var(--bg) 100%); }
+
+      /* ---------- top bar ---------- */
+      .topbar{
+        display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
+        border-bottom:1px solid var(--line-soft);
+        padding-bottom:10px;
+      }
+      .brand{ min-width:0; }
+      .brand{
+        font-family:"Orbitron", sans-serif; font-weight:800; letter-spacing:.34em;
+        font-size:12px; color:var(--cyan); text-transform:uppercase; white-space:nowrap;
+      }
+      .brand small{ display:block; letter-spacing:.22em; color:var(--faint); font-size:9px; margin-top:3px; font-weight:600; }
+      .top-right{ display:flex; align-items:center; gap:10px; }
+      .clock{
+        font-family:"Share Tech Mono", monospace; font-size:14px; color:var(--ice);
+        border:1px solid var(--line-soft); padding:7px 12px; border-radius:4px; background:var(--panel);
+        min-width:104px; text-align:center;
+      }
+      .sound-btn{
+        background:var(--panel); color:var(--dim); border:1px solid var(--line-soft);
+        border-radius:4px; padding:8px 14px; font-weight:700; letter-spacing:.14em; font-size:12px;
+        text-transform:uppercase;
+      }
+      .sound-btn[aria-pressed="true"]{ color:var(--cyan); border-color:var(--line); }
+
+      /* ---------- layout ---------- */
+      .deck{
+        flex:1; display:grid; align-items:center;
+        grid-template-columns:250px 1fr 250px;
+        gap:clamp(10px, 2.5vw, 36px);
+        padding:18px 0 8px;
+      }
+      .panel{
+        background:var(--panel); border:1px solid var(--line-soft); border-radius:6px;
+        padding:16px 16px 14px; backdrop-filter:blur(3px);
+      }
+      .panel h2{
+        margin:0 0 12px; font-family:"Orbitron", sans-serif; font-size:11px; font-weight:800;
+        letter-spacing:.3em; color:var(--cyan); text-transform:uppercase;
+        border-bottom:1px solid var(--line-soft); padding-bottom:9px;
+      }
+      .sys-list{ list-style:none; margin:0; padding:0; display:grid; gap:11px; }
+      .sys-list li{
+        display:flex; align-items:center; gap:10px;
+        font-weight:600; letter-spacing:.16em; font-size:14px; color:var(--dim); text-transform:uppercase;
+      }
+      .dot{
+        width:10px; height:10px; border-radius:50%; flex:none;
+        border:1px solid var(--cyan-deep); background:transparent; transition:all .3s;
+      }
+      .sys-list li.lit{ color:var(--ice); }
+      .sys-list li.lit .dot{ background:var(--green); border-color:var(--green); box-shadow:0 0 10px rgba(61,255,200,.8); }
+      .sys-list li .state{ margin-left:auto; font-family:"Share Tech Mono", monospace; font-size:11px; color:var(--faint); letter-spacing:.05em; }
+      .sys-list li.lit .state{ color:var(--green); }
+
+      .tele{ display:grid; gap:13px; }
+      .tele .row{ display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
+      .tele .k{ font-size:12px; font-weight:700; letter-spacing:.22em; color:var(--faint); text-transform:uppercase; }
+      .tele .v{ font-family:"Share Tech Mono", monospace; font-size:17px; color:var(--ice); }
+      .tele .v em{ font-style:normal; font-size:11px; color:var(--dim); }
+      .bar{ height:5px; background:rgba(53,214,255,.12); border-radius:3px; overflow:hidden; margin-top:5px; }
+      .bar i{ display:block; height:100%; width:0%; background:linear-gradient(90deg, var(--cyan-deep), var(--cyan)); transition:width .5s ease; box-shadow:0 0 8px rgba(53,214,255,.7); }
+
+      /* ---------- center / reactor ---------- */
+      .center{ text-align:center; min-width:0; }
+      .reactor-wrap{ position:relative; width:min(46vmin, 380px); aspect-ratio:1; margin:0 auto; }
+      .reactor-wrap svg{ width:100%; height:100%; display:block; overflow:visible; }
+      .ring-a{ transform-origin:200px 200px; animation:spin 46s linear infinite; }
+      .ring-b{ transform-origin:200px 200px; animation:spin-rev 34s linear infinite; }
+      .ring-c{ transform-origin:200px 200px; animation:spin 22s linear infinite; }
+      .ring-d{ transform-origin:200px 200px; animation:spin-rev 60s linear infinite; }
+      @keyframes spin{ to{ transform:rotate(360deg); } }
+      @keyframes spin-rev{ to{ transform:rotate(-360deg); } }
+      .booting .ring-a{ animation-duration:5s; }
+      .booting .ring-b{ animation-duration:3.6s; }
+      .booting .ring-c{ animation-duration:2.2s; }
+      .booting .ring-d{ animation-duration:8s; }
+      .online .ring-a{ animation-duration:16s; }
+      .online .ring-b{ animation-duration:12s; }
+      .online .ring-c{ animation-duration:9s; }
+      .core-glow{ transition:opacity .6s; }
+      .core-pulse{ transform-origin:200px 200px; animation:pulse 3.2s ease-in-out infinite; }
+      @keyframes pulse{ 0%,100%{ transform:scale(1); } 50%{ transform:scale(1.045); } }
+      .booting .core-pulse{ animation-duration:.9s; }
+      .flare{
+        position:absolute; inset:-16%; border-radius:50%; pointer-events:none; opacity:0;
+        background:radial-gradient(circle, rgba(215,246,255,.85) 0%, rgba(53,214,255,.35) 34%, transparent 68%);
+      }
+      .ignite .flare{ animation:flare 1.15s ease-out; }
+      @keyframes flare{ 0%{ opacity:0; transform:scale(.55); } 22%{ opacity:1; } 100%{ opacity:0; transform:scale(1.25); } }
+      .pct{
+        position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+        pointer-events:none;
+      }
+      .pct .num{ font-family:"Orbitron", sans-serif; font-weight:900; font-size:clamp(30px, 6vmin, 46px); color:var(--ice); text-shadow:var(--glow); line-height:1; }
+      .pct .lbl{ font-size:11px; letter-spacing:.34em; color:var(--dim); font-weight:700; margin-top:7px; text-transform:uppercase; }
+      .idle-pct .num{ font-size:clamp(19px, 3.6vmin, 26px); letter-spacing:.14em; }
+
+      .scanline{
+        position:absolute; left:4%; right:4%; height:2px; top:8%; opacity:0; pointer-events:none;
+        background:linear-gradient(90deg, transparent, var(--cyan), transparent);
+        box-shadow:0 0 16px rgba(53,214,255,.9);
+      }
+      .booting .scanline{ opacity:1; animation:scan 1.5s ease-in-out infinite alternate; }
+      @keyframes scan{ from{ top:6%; } to{ top:92%; } }
+
+      h1{
+        margin:20px 0 2px; font-family:"Orbitron", sans-serif; font-weight:900;
+        font-size:clamp(34px, 7.2vw, 58px); letter-spacing:.3em; text-indent:.3em;
+        color:var(--ice); text-shadow:var(--glow);
+      }
+      .tagline{ margin:0; color:var(--dim); font-weight:600; letter-spacing:.3em; font-size:clamp(11px, 2.4vw, 14px); text-transform:uppercase; }
+      .status-line{
+        margin:14px auto 0; min-height:26px; font-family:"Share Tech Mono", monospace;
+        font-size:clamp(13px, 2.6vw, 16px); color:var(--cyan);
+      }
+      .status-line.online-txt{ color:var(--green); }
+
+      .actions{ margin-top:18px; display:flex; flex-wrap:wrap; gap:12px; justify-content:center; align-items:center; }
+      .jarvis-btn{
+        position:relative; border:1px solid var(--cyan); color:#02141c;
+        background:linear-gradient(180deg, #8fe9ff, var(--cyan) 55%, #19a8d4);
+        font-family:"Orbitron", sans-serif; font-weight:900; letter-spacing:.24em; text-indent:.1em;
+        font-size:clamp(15px, 3vw, 18px); padding:16px 34px; border-radius:999px;
+        box-shadow:var(--glow), inset 0 1px 0 rgba(255,255,255,.65);
+        display:inline-flex; align-items:center; gap:12px;
+        transition:transform .15s ease, filter .15s ease;
+      }
+      .jarvis-btn:hover{ filter:brightness(1.1); }
+      .jarvis-btn:active{ transform:scale(.97); }
+      .jarvis-btn:disabled{ opacity:.55; cursor:wait; }
+      .jarvis-btn .mini-core{ width:16px; height:16px; border-radius:50%; background:#eafcff; box-shadow:0 0 0 3px rgba(2,20,28,.28), 0 0 14px #fff; flex:none; }
+      .ghost-btn{
+        background:transparent; color:var(--cyan); border:1px solid var(--line);
+        padding:13px 22px; border-radius:999px; font-weight:700; letter-spacing:.18em; font-size:13px;
+        text-transform:uppercase; text-decoration:none; display:none; align-items:center; gap:9px;
+      }
+      .ghost-btn.show{ display:inline-flex; }
+      a.ghost-btn:hover, button.ghost-btn:hover{ background:rgba(53,214,255,.1); }
+      .spotify-btn{ color:var(--green); border-color:rgba(61,255,200,.4); }
+
+      /* ---------- track strip ---------- */
+      .track-strip{
+        margin:20px auto 0; max-width:640px; display:flex; align-items:center; gap:14px; text-align:left;
+        border:1px solid var(--line-soft); background:var(--panel); border-radius:8px; padding:12px 16px;
+      }
+      .track-disc{
+        width:46px; height:46px; border-radius:50%; flex:none; position:relative;
+        border:2px solid var(--cyan-deep);
+        background:radial-gradient(circle, #dff8ff 0 18%, var(--cyan) 19% 30%, #06222f 31% 100%);
+        box-shadow:0 0 14px rgba(53,214,255,.35);
+      }
+      .online .track-disc{ animation:spin 5s linear infinite; }
+      .track-meta{ min-width:0; flex:1; }
+      .track-meta .t1{ font-weight:700; font-size:17px; letter-spacing:.04em; color:var(--ice); }
+      .track-meta .t2{ font-size:13px; color:var(--dim); font-weight:600; letter-spacing:.06em; }
+      .track-link{
+        flex:none; color:#052a18; background:var(--green); text-decoration:none; font-weight:700;
+        letter-spacing:.1em; font-size:13px; padding:12px 18px; border-radius:999px; text-transform:uppercase;
+        display:inline-flex; align-items:center; min-height:48px;
+      }
+
+      /* ---------- console ---------- */
+      .console{
+        margin-top:18px; border:1px solid var(--line-soft); background:rgba(2,12,18,.82);
+        border-radius:6px; padding:13px 16px; min-height:118px;
+        font-family:"Share Tech Mono", monospace; font-size:13.5px; line-height:1.65; color:#9fe8ff;
+      }
+      .console .hd{ color:var(--faint); font-size:11px; letter-spacing:.26em; margin-bottom:6px; font-family:"Rajdhani", sans-serif; font-weight:700; }
+      .console p{ margin:0; white-space:pre-wrap; word-break:break-word; }
+      .console p .ok{ color:var(--green); }
+      .console p.dimline{ color:var(--faint); }
+      .caret::after{ content:"▊"; margin-left:3px; color:var(--cyan); animation:blink 1s steps(1) infinite; }
+      @keyframes blink{ 50%{ opacity:0; } }
+
+      .foot{
+        margin-top:14px; text-align:center; color:var(--faint); font-size:13px; font-weight:600; letter-spacing:.08em;
+      }
+      .foot b{ color:var(--dim); }
+
+      /* corner brackets */
+      .corner{ position:absolute; width:26px; height:26px; border:2px solid var(--cyan); opacity:.55; pointer-events:none; }
+      .corner.tl{ top:10px; left:10px; border-right:0; border-bottom:0; }
+      .corner.tr{ top:10px; right:10px; border-left:0; border-bottom:0; }
+      .corner.bl{ bottom:10px; left:10px; border-right:0; border-top:0; }
+      .corner.br{ bottom:10px; right:10px; border-left:0; border-top:0; }
+
+      @media (max-width:900px){
+        .deck{ grid-template-columns:1fr; gap:14px; padding-top:12px; }
+        .panel.left{ order:2; }
+        .panel.right{ order:3; }
+        .center{ order:1; }
+        .panel{ padding:13px 15px 11px; }
+        .sys-list{ grid-template-columns:1fr; gap:10px; }
+        .tele{ grid-template-columns:1fr 1fr; gap:10px 18px; }
+        .reactor-wrap{ width:min(58vmin, 320px); }
+        .console{ min-height:104px; font-size:12.5px; }
+        .brand{ font-size:11px; letter-spacing:.18em; }
+        .brand small{ letter-spacing:.12em; font-size:8px; }
+        .clock{ min-width:0; font-size:12px; padding:6px 9px; }
+        .sound-btn{ padding:8px 11px; font-size:11px; letter-spacing:.1em; }
+        .status-line{ padding:0 8px; }
+        .track-strip{ flex-wrap:wrap; }
+        .track-link{ margin-left:auto; }
+        h1{ letter-spacing:.18em; text-indent:.18em; }
+      }
+      @media (prefers-reduced-motion: reduce){
+        .ring-a,.ring-b,.ring-c,.ring-d,.core-pulse,.online .track-disc{ animation-duration:120s !important; }
+        .booting .scanline{ animation:none; opacity:.35; }
+        .ignite .flare{ animation-duration:.3s; }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="stage" id="stage">
+      <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+
+      <header class="topbar">
+        <div class="brand">Stark Industries<small>Personal Intelligence Console</small></div>
+        <div class="top-right">
+          <div class="clock" id="clock" aria-label="Current time">--:--:--</div>
+          <button class="sound-btn" id="soundBtn" type="button" aria-pressed="true">Sound On</button>
+        </div>
+      </header>
+
+      <div class="deck">
+        <section class="panel left" aria-label="Systems checklist">
+          <h2>Systems</h2>
+          <ul class="sys-list" id="sysList">
+            <li data-sys="0"><span class="dot"></span>Arc Reactor<span class="state">STANDBY</span></li>
+            <li data-sys="1"><span class="dot"></span>HUD Display<span class="state">STANDBY</span></li>
+            <li data-sys="2"><span class="dot"></span>Navigation<span class="state">STANDBY</span></li>
+            <li data-sys="3"><span class="dot"></span>Comms<span class="state">STANDBY</span></li>
+            <li data-sys="4"><span class="dot"></span>Spotify Link<span class="state">STANDBY</span></li>
+          </ul>
+        </section>
+
+        <section class="center">
+          <div class="reactor-wrap" id="reactorWrap" aria-hidden="true">
+            <svg viewBox="0 0 400 400" role="img" aria-label="Arc reactor">
+              <defs>
+                <radialGradient id="coreGrad" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%" stop-color="#ffffff"/>
+                  <stop offset="38%" stop-color="#c9f4ff"/>
+                  <stop offset="72%" stop-color="#35d6ff"/>
+                  <stop offset="100%" stop-color="#0e86ad"/>
+                </radialGradient>
+              </defs>
+              <circle cx="200" cy="200" r="192" fill="none" stroke="rgba(53,214,255,.12)" stroke-width="1.5"/>
+              <g class="ring-d" id="ticks"></g>
+              <g class="ring-a">
+                <circle cx="200" cy="200" r="168" fill="none" stroke="#35d6ff" stroke-width="7" stroke-dasharray="140 68 320 90 210 227" opacity=".85"/>
+                <circle cx="200" cy="200" r="168" fill="none" stroke="rgba(53,214,255,.25)" stroke-width="1.5"/>
+              </g>
+              <g class="ring-b">
+                <circle cx="200" cy="200" r="146" fill="none" stroke="#7fe6ff" stroke-width="3" stroke-dasharray="46 30 120 44 70 190" opacity=".9"/>
+                <circle cx="200" cy="200" r="138" fill="none" stroke="rgba(53,214,255,.3)" stroke-width="10" stroke-dasharray="4 14" opacity=".6"/>
+              </g>
+              <circle cx="200" cy="200" r="118" fill="none" stroke="rgba(53,214,255,.35)" stroke-width="1.5"/>
+              <g class="ring-c">
+                <circle cx="200" cy="200" r="104" fill="none" stroke="#35d6ff" stroke-width="12" stroke-dasharray="58 24" opacity=".8"/>
+              </g>
+              <circle id="progressRing" cx="200" cy="200" r="182" fill="none" stroke="#3dffc8" stroke-width="3.5"
+                      stroke-linecap="round" transform="rotate(-90 200 200)" opacity=".95"/>
+              <g class="core-pulse">
+                <circle class="core-glow" cx="200" cy="200" r="86" fill="rgba(53,214,255,.16)"/>
+                <circle cx="200" cy="200" r="62" fill="url(#coreGrad)"/>
+                <polygon points="200,152 244,226 156,226" fill="none" stroke="rgba(2,30,42,.55)" stroke-width="5" stroke-linejoin="round"/>
+                <circle cx="200" cy="200" r="62" fill="none" stroke="#eafcff" stroke-width="2" opacity=".8"/>
+              </g>
+            </svg>
+            <div class="flare"></div>
+            <div class="scanline"></div>
+            <div class="pct idle-pct" id="pctBox">
+              <div class="num" id="pctNum">STANDBY</div>
+              <div class="lbl" id="pctLbl">Reactor Idle</div>
+            </div>
+          </div>
+
+          <h1>J.A.R.V.I.S.</h1>
+          <p class="tagline">Just A Rather Very Intelligent System</p>
+          <p class="status-line" id="statusLine">Systems on standby. Awaiting your command, sir.</p>
+
+          <div class="actions">
+            <button class="jarvis-btn" id="jarvisBtn" type="button">
+              <span class="mini-core"></span><span id="jarvisBtnTxt">Initiate J.A.R.V.I.S.</span>
+            </button>
+            <a class="ghost-btn spotify-btn" id="playBtn" href="https://open.spotify.com/track/4svkPL62HbvyFgf0nHFXAF" target="_blank" rel="noopener noreferrer">▶ Play “Iron Man” on Spotify</a>
+            <button class="ghost-btn" id="exitFsBtn" type="button">Exit Fullscreen</button>
+          </div>
+
+          <div class="track-strip">
+            <div class="track-disc" aria-hidden="true"></div>
+            <div class="track-meta">
+              <div class="t1">“Iron Man” — Black Sabbath</div>
+              <div class="t2">Cued on boot · from <i>Paranoid</i> (1970) · opens in your Spotify app</div>
+            </div>
+            <a class="track-link" href="https://open.spotify.com/track/4svkPL62HbvyFgf0nHFXAF" target="_blank" rel="noopener noreferrer">Spotify ↗</a>
+          </div>
+        </section>
+
+        <section class="panel right" aria-label="Reactor telemetry">
+          <h2>Telemetry</h2>
+          <div class="tele">
+            <div>
+              <div class="row"><span class="k">Core Output</span><span class="v" id="tOut">0.0 <em>GJ/s</em></span></div>
+              <div class="bar"><i id="bOut"></i></div>
+            </div>
+            <div>
+              <div class="row"><span class="k">Core Temp</span><span class="v" id="tTemp">— <em>K</em></span></div>
+              <div class="bar"><i id="bTemp"></i></div>
+            </div>
+            <div>
+              <div class="row"><span class="k">HUD Sync</span><span class="v" id="tSync">0<em>%</em></span></div>
+              <div class="bar"><i id="bSync"></i></div>
+            </div>
+            <div>
+              <div class="row"><span class="k">Audio Link</span><span class="v" id="tAudio">IDLE</span></div>
+              <div class="bar"><i id="bAudio"></i></div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <section class="console" aria-label="Boot log" aria-live="polite">
+        <div class="hd">J.A.R.V.I.S. // BOOT LOG</div>
+        <div id="logBody">
+          <p class="dimline">&gt; Console ready. Tap INITIATE J.A.R.V.I.S. to begin the boot sequence.</p>
+        </div>
+      </section>
+
+      <p class="foot">One tap fires the <b>fullscreen boot</b> and <b>opens “Iron Man” in Spotify</b>. Quick note: the track is Black Sabbath’s — Spotify has no “Iron Man” by Iron Maiden, and its catalog returns this one for that search.</p>
+    </main>
+
+    <script>
+      (function(){
+        "use strict";
+        var SPOTIFY_URL = "https://open.spotify.com/track/4svkPL62HbvyFgf0nHFXAF";
+        var stage = document.getElementById("stage");
+        var btn = document.getElementById("jarvisBtn");
+        var btnTxt = document.getElementById("jarvisBtnTxt");
+        var playBtn = document.getElementById("playBtn");
+        var exitBtn = document.getElementById("exitFsBtn");
+        var soundBtn = document.getElementById("soundBtn");
+        var statusLine = document.getElementById("statusLine");
+        var logBody = document.getElementById("logBody");
+        var pctBox = document.getElementById("pctBox");
+        var pctNum = document.getElementById("pctNum");
+        var pctLbl = document.getElementById("pctLbl");
+        var wrap = document.getElementById("reactorWrap");
+        var ring = document.getElementById("progressRing");
+        var sysItems = document.querySelectorAll("#sysList li");
+        var CIRC = 2 * Math.PI * 182;
+        ring.style.strokeDasharray = CIRC;
+        ring.style.strokeDashoffset = CIRC;
+
+        var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        var BOOT_MS = reduced ? 1600 : 5800;
+        var booting = false, online = false, soundOn = true;
+        var timers = [];
+
+        /* tick marks on outer ring */
+        (function buildTicks(){
+          var g = document.getElementById("ticks"), s = "";
+          for (var i = 0; i < 60; i++){
+            var a = (i * 6) * Math.PI / 180, big = i % 5 === 0;
+            var r1 = big ? 176 : 182, r2 = 188;
+            s += '<line x1="' + (200 + r1 * Math.cos(a)).toFixed(1) + '" y1="' + (200 + r1 * Math.sin(a)).toFixed(1) +
+                 '" x2="' + (200 + r2 * Math.cos(a)).toFixed(1) + '" y2="' + (200 + r2 * Math.sin(a)).toFixed(1) +
+                 '" stroke="rgba(127,230,255,' + (big ? ".8" : ".35") + ')" stroke-width="' + (big ? 2.4 : 1.2) + '"/>';
+          }
+          g.innerHTML = s;
+        })();
+
+        /* clock */
+        function tickClock(){
+          var d = new Date(), p = function(n){ return (n < 10 ? "0" : "") + n; };
+          document.getElementById("clock").textContent = p(d.getHours()) + ":" + p(d.getMinutes()) + ":" + p(d.getSeconds());
+        }
+        tickClock(); setInterval(tickClock, 1000);
+
+        function greeting(){
+          var h = new Date().getHours();
+          return h < 12 ? "Good morning" : (h < 18 ? "Good afternoon" : "Good evening");
+        }
+
+        /* ---------- sound (WebAudio, synthesized — no files) ---------- */
+        var actx = null, master = null;
+        function audio(){
+          if (!soundOn) return null;
+          if (!actx){
+            try {
+              actx = new (window.AudioContext || window.webkitAudioContext)();
+              master = actx.createGain(); master.gain.value = 0.06; master.connect(actx.destination);
+            } catch(e){ return null; }
+          }
+          if (actx.state === "suspended") actx.resume();
+          return actx;
+        }
+        function blip(freq, dur, delay, type){
+          var ac = audio(); if (!ac) return;
+          var t = ac.currentTime + (delay || 0);
+          var o = ac.createOscillator(), g = ac.createGain();
+          o.type = type || "sine"; o.frequency.setValueAtTime(freq, t);
+          g.gain.setValueAtTime(0.0001, t);
+          g.gain.exponentialRampToValueAtTime(0.5, t + 0.02);
+          g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+          o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.05);
+        }
+        function sweep(){
+          var ac = audio(); if (!ac) return;
+          var t = ac.currentTime;
+          var o = ac.createOscillator(), g = ac.createGain(), f = ac.createBiquadFilter();
+          o.type = "sawtooth";
+          o.frequency.setValueAtTime(55, t);
+          o.frequency.exponentialRampToValueAtTime(330, t + (BOOT_MS / 1000) * 0.8);
+          f.type = "lowpass"; f.frequency.value = 640; f.Q.value = 4;
+          g.gain.setValueAtTime(0.0001, t);
+          g.gain.exponentialRampToValueAtTime(0.32, t + 0.4);
+          g.gain.exponentialRampToValueAtTime(0.0001, t + (BOOT_MS / 1000) * 0.92);
+          o.connect(f); f.connect(g); g.connect(master);
+          o.start(t); o.stop(t + BOOT_MS / 1000);
+        }
+        soundBtn.addEventListener("click", function(){
+          soundOn = !soundOn;
+          soundBtn.textContent = soundOn ? "Sound On" : "Sound Off";
+          soundBtn.setAttribute("aria-pressed", soundOn ? "true" : "false");
+          if (soundOn) blip(920, 0.12, 0);
+        });
+
+        /* ---------- helpers ---------- */
+        function later(fn, ms){ timers.push(setTimeout(fn, ms)); }
+        function setTele(out, temp, sync, audioPct, audioTxt){
+          document.getElementById("tOut").innerHTML = out.toFixed(1) + " <em>GJ/s</em>";
+          document.getElementById("bOut").style.width = Math.min(100, out / 3.2 * 100) + "%";
+          document.getElementById("tTemp").innerHTML = temp + " <em>K</em>";
+          document.getElementById("bTemp").style.width = Math.min(100, temp / 12) + "%";
+          document.getElementById("tSync").innerHTML = sync + "<em>%</em>";
+          document.getElementById("bSync").style.width = sync + "%";
+          document.getElementById("bAudio").style.width = audioPct + "%";
+          if (audioTxt) document.getElementById("tAudio").textContent = audioTxt;
+        }
+        function logLine(text, cls){
+          var p = document.createElement("p");
+          if (cls) p.className = cls;
+          p.innerHTML = text;
+          logBody.appendChild(p);
+          return p;
+        }
+        function lightSys(i){
+          var li = sysItems[i]; if (!li) return;
+          li.classList.add("lit");
+          li.querySelector(".state").textContent = "ONLINE";
+        }
+
+        var LINES = [
+          "&gt; Initializing J.A.R.V.I.S. kernel .......... <span class='ok'>OK</span>",
+          "&gt; Arc reactor output climbing ............ <span class='ok'>NOMINAL</span>",
+          "&gt; HUD optics calibrated .................. <span class='ok'>OK</span>",
+          "&gt; Navigation &amp; comms handshake ........... <span class='ok'>OK</span>",
+          "&gt; Spotify link established ............... <span class='ok'>CONNECTED</span>",
+          "&gt; Cueing track: “Iron Man” — Black Sabbath",
+          "&gt; Running final diagnostics .............. <span class='ok'>ALL SYSTEMS NOMINAL</span>"
+        ];
+
+        function goFullscreen(){
+          var el = document.documentElement;
+          try {
+            if (el.requestFullscreen) {
+              var pr = el.requestFullscreen({ navigationUI: "hide" });
+              if (pr && pr.catch) pr.catch(function(){ try{ el.requestFullscreen(); }catch(e){} });
+            } else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+          } catch(e){}
+        }
+        function openSpotify(){
+          var w = null;
+          try { w = window.open(SPOTIFY_URL, "_blank", "noopener"); } catch(e){}
+          return !!w;
+        }
+        document.addEventListener("fullscreenchange", function(){
+          var inFs = !!document.fullscreenElement;
+          exitBtn.classList.toggle("show", inFs);
+          stage.classList.toggle("is-fs", inFs);
+        });
+        exitBtn.addEventListener("click", function(){
+          if (document.fullscreenElement) document.exitFullscreen();
+        });
+
+        function startBoot(withSpotify){
+          if (booting) return;
+          booting = true; online = false;
+          timers.forEach(clearTimeout); timers = [];
+          stage.classList.remove("online", "ignite");
+          stage.classList.add("booting");
+          btn.disabled = true; btnTxt.textContent = "Booting…";
+          playBtn.classList.remove("show");
+          statusLine.classList.remove("online-txt");
+          statusLine.textContent = "Boot sequence initiated…";
+          pctBox.classList.remove("idle-pct");
+          pctLbl.textContent = "Boot Sequence";
+          logBody.innerHTML = "";
+          sysItems.forEach(function(li){
+            li.classList.remove("lit");
+            li.querySelector(".state").textContent = "…";
+          });
+          setTele(0, 0, 0, 0, "LINKING");
+
+          if (withSpotify) openSpotify();
+          goFullscreen();
+          sweep();
+
+          /* progress tween */
+          var start = null;
+          function step(ts){
+            if (!start) start = ts;
+            var p = Math.min(1, (ts - start) / BOOT_MS);
+            var eased = 1 - Math.pow(1 - p, 2.2);
+            var pct = Math.round(eased * 100);
+            pctNum.textContent = pct + "%";
+            ring.style.strokeDashoffset = CIRC * (1 - eased);
+            setTele(3.1 * eased, Math.round(1180 * eased), pct, Math.round(p * 100),
+                    p < 1 ? "LINKING" : "SPOTIFY");
+            if (p < 1 && booting) requestAnimationFrame(step);
+          }
+          requestAnimationFrame(step);
+
+          /* log + checklist staggered */
+          var stepMs = BOOT_MS / (LINES.length + 1.4);
+          LINES.forEach(function(line, i){
+            later(function(){
+              logLine(line);
+              blip(660 + i * 60, 0.07, 0);
+              if (i === 1) lightSys(0);
+              if (i === 2) lightSys(1);
+              if (i === 3) lightSys(2), lightSys(3);
+              if (i === 4) lightSys(4);
+            }, 350 + i * stepMs);
+          });
+          var typing = logLine("&gt; <span class='caret'></span>", "dimline");
+
+          /* ignite + online */
+          later(function(){
+            stage.classList.add("ignite");
+            wrap.classList.add("ignite");
+            blip(523, 0.16, 0); blip(784, 0.22, 0.13); blip(1046, 0.34, 0.27);
+          }, BOOT_MS - 500);
+
+          later(function(){
+            booting = false; online = true;
+            stage.classList.remove("booting");
+            stage.classList.add("online");
+            typing.remove();
+            logLine("&gt; J.A.R.V.I.S. is online. “Iron Man” is cued in Spotify — press play there if the app needs a tap.", "");
+            pctNum.textContent = "ONLINE";
+            pctLbl.textContent = "All Systems Go";
+            statusLine.classList.add("online-txt");
+            statusLine.textContent = greeting() + ", Ryan. All systems are now fully operational.";
+            btn.disabled = false; btnTxt.textContent = "Run It Again";
+            playBtn.classList.add("show");
+            setTele(3.1, 1180, 100, 100, "SPOTIFY");
+            sysItems.forEach(function(li, i){ lightSys(i); });
+          }, BOOT_MS + 120);
+        }
+
+        btn.addEventListener("click", function(){ startBoot(true); });
+        /* expose for testing */
+        window.__jarvisBoot = function(){ startBoot(false); };
+      })();
+    </script>
+  </body>
+</html>
